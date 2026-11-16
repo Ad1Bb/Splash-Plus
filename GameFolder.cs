@@ -16,6 +16,9 @@ namespace SplashAddonPlus
         // "C:\something" or "\\server\share\something": at least one folder below the root.
         private static readonly Regex UsablePath = new Regex(@"^([A-Za-z]:\\[^\\]+|\\\\[^\\]+\\[^\\]+\\[^\\]+)", RegexOptions.Compiled);
 
+        // "C:\..." or "C:/..." or a network path "\\server\...".
+        private static readonly Regex FullyQualified = new Regex(@"^([A-Za-z]:[\\/]|[\\/]{2})", RegexOptions.Compiled);
+
         // Folders that hold many games (library roots), never a single game.
         private static readonly string[] LibraryFolderEndings =
         {
@@ -31,7 +34,13 @@ namespace SplashAddonPlus
                 return null;
             }
 
+            // Relative and drive-relative paths ("C:", "Games\Doom") would be resolved against the current folder.
             string path = folder.Trim().Trim('"');
+            if (!FullyQualified.IsMatch(path))
+            {
+                return null;
+            }
+
             if (Path.DirectorySeparatorChar == '\\')
             {
                 try

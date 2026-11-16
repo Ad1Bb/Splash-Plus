@@ -6,3 +6,8 @@ Module: SplashAddonPlus.dll
 Type: GenericPlugin
 EntryPoint: SplashAddonPlus.SplashAddonPlugin
 Icon: icon.png
+Links:
+    - Name: GitHub
+      Url: https://github.com/Ad1Bb/Playnite-Splash-Addon-Plus
+    - Name: Bug tracker
+      Url: https://github.com/Ad1Bb/Playnite-Splash-Addon-Plus/issues

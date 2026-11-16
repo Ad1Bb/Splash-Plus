@@ -147,7 +147,8 @@ Check(GameFolder.Normalize(@"C:\Program Files\WindowsApps\Microsoft.ForteBaseGam
 Check(GameFolder.Normalize("D:/Witcher3") == @"D:\Witcher3", "forward slashes, one level deep");
 Check(GameFolder.Normalize(@"\\nas\games\Doom") == @"\\nas\games\Doom", "network folder kept");
 foreach (string badFolder in new[] { @"C:\", "C:", @"D:\Games", @"D:\SteamLibrary\steamapps\common", @"E:\Steam\steamapps", @"C:\Program Files",
-                                @"C:\Program Files (x86)", @"C:\Program Files\WindowsApps", @"C:\XboxGames", @"\\nas\games", "relative\\folder", "", null })
+                                @"C:\Program Files (x86)", @"C:\Program Files\WindowsApps", @"C:\XboxGames", @"\\nas\games", "relative\\folder", "", null,
+                                "C:Games\\Doom", @"\Games\Doom", @"..\Doom" })
 {
     Check(GameFolder.Normalize(badFolder) == null, "too general or invalid folder rejected: " + (badFolder ?? "null"));
 }
