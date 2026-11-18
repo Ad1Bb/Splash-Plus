@@ -15,6 +15,31 @@ namespace SplashAddonPlus
         private const int MaxDownloadBytes = 40 * 1024 * 1024;
 
         /// <summary>
+        /// Width / height of a local image file, read from its header only (fast enough for the UI thread).
+        /// Null for web images and unreadable files.
+        /// </summary>
+        public static double? ReadAspect(string source)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(source) || source.StartsWith("http", StringComparison.OrdinalIgnoreCase) || !File.Exists(source))
+                {
+                    return null;
+                }
+
+                using (var stream = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    BitmapFrame frame = BitmapDecoder.Create(stream, BitmapCreateOptions.DelayCreation, BitmapCacheOption.None).Frames[0];
+                    return frame.PixelHeight > 0 ? frame.PixelWidth / (double)frame.PixelHeight : (double?)null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Loads a file path or http(s) URL. With <paramref name="cover"/> the image is decoded just large enough
         /// to fill targetWidth x targetHeight (cropping allowed); otherwise just large enough to fit inside it.
         /// A target of 0 means "no limit" for that side.
@@ -123,7 +148,7 @@ namespace SplashAddonPlus
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Timeout = DownloadTimeoutMs;
             request.ReadWriteTimeout = DownloadTimeoutMs;
-            request.UserAgent = "Playnite Splash Addon Plus";
+            request.UserAgent = "Playnite Splash Plus";
 
             using (var response = (HttpWebResponse)request.GetResponse())
             using (Stream body = response.GetResponseStream())

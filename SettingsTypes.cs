@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace SplashAddonPlus
 {
@@ -14,6 +15,60 @@ namespace SplashAddonPlus
         Center,
         TopLeft,
         TopRight
+    }
+
+    /// <summary>Look of the splash screen.</summary>
+    public enum SplashStyle
+    {
+        /// <summary>Shown as "Custom"; the saved name stays "Classic".</summary>
+        Classic,
+        Cinema,
+        Showcase,
+        Gallery,
+        Plinth,
+        Drawer,
+        Band,
+        TextMode,
+        TextModeDark,
+        PopFrost,
+        SwingFrost,
+        MeetFrost,
+        RiseFrost,
+        LootDrop,
+        LockOn,
+        Showdown,
+        Focus,
+        Slant,
+        IrisGloss,
+        SlateGloss
+    }
+
+    /// <summary>When the splash screen closes (shown as one choice; stored in AutoDetectFullscreen).</summary>
+    public enum CloseMode
+    {
+        /// <summary>As soon as the game's window is on screen.</summary>
+        WhenGameAppears,
+
+        /// <summary>After a fixed time from showing the splash.</summary>
+        FixedTime
+    }
+
+    /// <summary>The appearance options (logo position and size, dimming, vignette, zoom) are used only by Custom.</summary>
+    internal static class StyleOptions
+    {
+        public static bool Customizable(SplashStyle style) => style == SplashStyle.Classic;
+    }
+
+    /// <summary>Saves the style by name; a name it does not know (a style that was removed) reads as Classic.</summary>
+    internal sealed class SplashStyleConverter : StringEnumConverter
+    {
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            return reader.TokenType == JsonToken.String && Enum.TryParse((string)reader.Value, true, out SplashStyle style)
+                && Enum.IsDefined(typeof(SplashStyle), style)
+                ? style
+                : SplashStyle.Classic;
+        }
     }
 
     /// <summary>One row of the per-platform display times.</summary>

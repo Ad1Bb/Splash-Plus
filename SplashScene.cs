@@ -78,12 +78,24 @@ namespace SplashAddonPlus
         }
     }
 
+    /// <summary>Content of the splash window in one of the styles.</summary>
+    internal interface ISplashScene
+    {
+        UIElement Root { get; }
+
+        /// <summary>Starts loading the images; <paramref name="screen"/> is the monitor size in pixels.</summary>
+        void LoadImagesAsync(SplashImageSources sources, MonitorArea screen);
+
+        /// <summary>The splash starts to fade out (the fade takes one second).</summary>
+        void OnClosing();
+    }
+
     /// <summary>
-    /// Content of the splash window: background, optional dimming and vignette, logo.
+    /// The Classic style: background, optional dimming and vignette, logo.
     /// Images are loaded in the background and fade in when ready, so showing the splash never waits for them.
     /// When a game has no background, its cover is used instead (blurred, with the cover itself in the middle if there is no logo).
     /// </summary>
-    internal sealed class SplashScene
+    internal sealed class SplashScene : ISplashScene
     {
         private static readonly ILogger Logger = LogManager.GetLogger();
 
@@ -162,7 +174,10 @@ namespace SplashAddonPlus
         /// <summary>Logo width in percent of the screen; 0 means no logo.</summary>
         private int LogoPercent => Clamp(_appearance.LogoWidthPercent, 0, SplashAddonSettings.MaxPercent);
 
-        /// <summary>Starts loading the images; <paramref name="screen"/> is the monitor size in pixels.</summary>
+        public void OnClosing()
+        {
+        }
+
         public void LoadImagesAsync(SplashImageSources sources, MonitorArea screen)
         {
             if (sources == null)

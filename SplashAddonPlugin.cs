@@ -16,7 +16,7 @@ namespace SplashAddonPlus
     {
         private static readonly ILogger Logger = LogManager.GetLogger();
 
-        private const string MenuSection = "Splash Addon Plus";
+        private const string MenuSection = "Splash Plus";
 
         // Settings folder of the original Splash Addon by Artzox; imported once so switching keeps the configuration.
         private const string OriginalAddonGuid = "550e8400-e29b-41d4-a716-446655440000";
@@ -30,6 +30,16 @@ namespace SplashAddonPlus
         public SplashAddonPlugin(IPlayniteAPI api)
             : base(api)
         {
+            // Playnite restarts when its language changes, so reading it once is enough.
+            try
+            {
+                Loc.SetLanguage(api.ApplicationSettings?.Language);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not read Playnite's language; using English.");
+            }
+
             _settings = LoadPluginSettings<SplashAddonSettings>() ?? ImportOriginalSettings() ?? new SplashAddonSettings();
             _settings.Upgrade();
             _settings.SaveRequested = SaveSettings;
@@ -37,7 +47,7 @@ namespace SplashAddonPlus
         }
 
         /// <summary>
-        /// First start of Splash Addon Plus: reuse the configuration of the original Splash Addon
+        /// First start of Splash Plus: reuse the configuration of the original Splash Addon
         /// (or of a modified build that still used its ID), if there is one.
         /// </summary>
         private SplashAddonSettings ImportOriginalSettings()
@@ -74,7 +84,30 @@ namespace SplashAddonPlus
 
         public override UserControl GetSettingsView(bool firstRunSettings)
         {
-            return new SplashAddonSettingsView(BuildPlatformList(), ResolveGameName) { DataContext = _settings };
+            return new SplashAddonSettingsView(BuildPlatformList(), ResolveGameName, PreviewRandomGame) { DataContext = _settings };
+        }
+
+        private static readonly Random PreviewPick = new Random();
+
+        /// <summary>
+        /// The settings page's Preview button: the splash screen with a random game (one with artwork when there is
+        /// any), using the settings as they are being edited.
+        /// </summary>
+        private void PreviewRandomGame()
+        {
+            RunOnUi(() =>
+            {
+                List<Game> games = PlayniteApi.Database.Games.ToList();
+                List<Game> withArt = games.Where(g => !string.IsNullOrEmpty(g.BackgroundImage) || !string.IsNullOrEmpty(g.CoverImage)).ToList();
+                List<Game> pool = withArt.Count > 0 ? withArt : games;
+                if (pool.Count == 0)
+                {
+                    PlayniteApi.Dialogs.ShowMessage(Loc.PreviewNoGames, MenuSection);
+                    return;
+                }
+
+                StartSplash(pool[PreviewPick.Next(pool.Count)], null, preview: true);
+            });
         }
 
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
@@ -88,21 +121,6 @@ namespace SplashAddonPlus
         public override void OnGameStarting(OnGameStartingEventArgs args)
         {
             RunOnUi(() => StartSplash(args.Game, args.SourceAction, preview: false));
-        }
-
-        public override void OnGameStarted(OnGameStartedEventArgs args)
-        {
-            RunOnUi(() =>
-            {
-                SplashSession session = _session;
-                if (session == null || session.GameId != args.Game.Id || !session.IsWaitingForGameStarted)
-                {
-                    return;
-                }
-
-                int remaining = session.DurationSeconds - (int)session.SecondsSinceShown;
-                session.StartCountdown(Math.Max(0, remaining));
-            });
         }
 
         public override void OnGameStopped(OnGameStoppedEventArgs args)
@@ -253,10 +271,6 @@ namespace SplashAddonPlus
             {
                 mode = SplashMode.AutoDetect;
             }
-            else if (_settings.UseGameStartedTimer)
-            {
-                mode = SplashMode.WaitForGameStarted;
-            }
             else
             {
                 mode = SplashMode.FixedTime;
@@ -281,6 +295,8 @@ namespace SplashAddonPlus
                     Zoom = _settings.BackgroundZoom
                 },
                 Images = SplashImageSources.ForGame(game),
+                Style = _settings.Style,
+                GameInfo = SplashGameInfo.FromGame(game, platform),
                 DiagnosticLogging = _settings.EnableDiagnosticLogging
             });
             session.Closed += (s, e) =>

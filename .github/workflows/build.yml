@@ -28,7 +28,7 @@ jobs:
       - name: Create the .pext package
         run: |
           version=$(grep '^Version:' extension.yaml | awk '{print $2}')
-          name="SplashAddonPlus_Ad1Bb_${version//./_}.pext"
+          name="SplashPlus_${version//./_}.pext"
           mkdir package
           cp bin/Release/SplashAddonPlus.dll extension.yaml icon.png package/
           (cd package && zip -q "../$name" SplashAddonPlus.dll extension.yaml icon.png)
@@ -39,12 +39,12 @@ jobs:
           name: pext
           path: ${{ env.PEXT }}
 
-      # Pushing a tag such as 1.0.0 publishes a release with the package attached.
+      # Pushing a tag such as 2.0 publishes a release with the package attached.
       - name: Attach the package to the release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Splash Addon Plus $GITHUB_REF_NAME"
+            || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "Splash Plus $GITHUB_REF_NAME"
           gh release upload "$GITHUB_REF_NAME" "$PEXT" --clobber

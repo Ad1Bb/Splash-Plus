@@ -1,81 +1,133 @@
-# Splash Addon Plus
+# Splash Plus
 
-A splash screen for [Playnite](https://playnite.link/) that covers the screen with the game's background and logo while the game is loading, and gets out of the way on its own once the game is actually on screen.
+Animated splash screens for [Playnite](https://playnite.link/). Pick a game and Splash Plus fills the screen with its artwork, cover and logo, then steps aside on its own the moment the game is actually on screen.
 
-Splash Addon Plus is a fork of **[Splash Addon](https://github.com/artzox/Playnite-Splash-Addon) by Artzox**. The splash screen itself, its look, the per-platform timers and the per-game settings come from the original add-on. This fork adds automatic detection of the moment the game is ready, plus a few conveniences listed below. All credit for the original idea and code goes to Artzox.
+<p align="center">
+  <img src="docs/styles-collage.gif" alt="All Splash Plus styles" width="100%">
+</p>
 
-## What is new compared to Splash Addon 1.0.2
+<p align="center">
+  <a href="https://github.com/Ad1Bb/Splash-Plus/releases/latest"><b>Download the latest release</b></a>
+</p>
 
-### Automatic fullscreen detection
+## Features
 
-Instead of guessing how many seconds a game needs, the add-on watches for a new window that covers a whole monitor (exclusive fullscreen or a borderless window). Once that window has stayed fullscreen for a moment, the splash screen fades out and the game gets keyboard focus.
+- **20 styles.** Nineteen ready-made animated designs, from frosted glass and smoked-glass gloss to a retro setup screen and a boss-intro title card, plus a Custom style you set up yourself.
+- **Closes when the game is ready.** Instead of a guessed number of seconds, Splash Plus waits for the game's window: exclusive fullscreen, borderless, or (optionally) a windowed game started from its installation folder. A short delay lets the game get past black screens and intros first.
+- **Your library's artwork.** Each style uses the game's background, cover and logo, along with details such as the year, developer, genre, playtime or rating. A game without a background gets its blurred cover instead, and a game without a logo shows its name.
+- **Best with logos.** The styles look their best with each game's logo downloaded. Logos come from the **Extra Metadata Loader** add-on, so install it too and download logos for your library.
+- **Best with standard-size artwork.** Backgrounds and covers close to their original size, such as the ones downloaded from Steam, load almost instantly. Very large files (for example 8K wallpapers or huge PNGs) take longer to read and can delay the artwork on screen.
+- **Close it any time.** Press **Esc**, click the mouse or press **B** on a gamepad. The click or button press that launched the game cannot close it by accident. The splash screen also closes by itself when the game exits or its startup is cancelled.
+- **Per-game settings.** Right-click games in your library and open **Splash Plus** to turn the splash screen off for them, give them a fixed display time, or preview it.
+- **Fixed time when you need it.** A fixed display time for all games, or a separate one for each platform.
+- **Desktop and Fullscreen mode.** The splash screen works in both modes, and so do the settings: every option can be changed right in Fullscreen mode, without going back to Desktop mode.
+- **9 languages.** English, German, French, Spanish, Italian, Portuguese (Brazil), Polish, Russian and Chinese (Simplified). Splash Plus follows Playnite's language setting.
 
-- Windows that were already fullscreen before the game started (another app, an overlay) are ignored.
-- **Windowed games** are detected too. When Playnite knows the game's installation folder, a window of a program from that folder counts as the game once it covers at least 20% of the screen. A fullscreen window of a program from outside that folder (often a launcher) has to last 3 seconds longer.
-- **Programs whose windows are never the game**, such as a launcher's own loading screen, can be listed in the settings. Their windows are never taken for the game, and while one of them fills the screen the splash screen keeps waiting. The list starts with `gamingservicesui` and can be edited freely.
-- Timing options: minimum display time, delay after detection and maximum waiting time (after which the splash screen always closes).
+## Lightweight
 
-Games that need special treatment can be given a fixed time, and the original timer-based behaviour is still available when detection is turned off.
+- **Nothing runs in the background.** Between games there are no timers, threads or polling. Splash Plus only waits for Playnite to report that a game is starting. The whole add-on is a single ~320 KB DLL.
+- **Smooth animations.** Images are decoded off the UI thread, at screen resolution only. Every blur, shadow and glow is rendered once, so the animations only move, scale and fade finished images, composited on the GPU.
+- **Tiny checks while it waits.** Looking for the game's window takes a fraction of a millisecond, four times a second. The gamepad is checked through XInput.
+- **Gone without a trace.** When the splash screen closes, every timer and animation stops and the images are released. If the game is never detected, a safety limit (60 seconds by default) closes it anyway.
+- **Robust.** A problem with a style or an image is caught and logged. It never takes down the splash screen or Playnite.
 
-### Appearance
+## Styles
 
-- **Logo:** six positions (corners, bottom center, center) and a size from 0% (no logo) to 90% of the screen width, so it looks the same on 1080p and 4K.
-- **Background:** optional dimming, a vignette and a slow zoom.
-- **Missing background:** games without a background image use their cover instead, blurred across the screen. When there is no logo either, the cover is also shown in the middle.
-- **Loading:** images are loaded in the background and decoded at the screen's resolution, so starting a game never waits for them and large images take less memory.
+Every style is chosen in the add-on settings, each with a **Preview** button that shows it with a random game from your library.
 
-### Closing the splash screen by hand
+<table>
+  <tr>
+    <td width="50%"><img src="docs/styles/band.jpg" alt="Band"><br><b>Band</b><br>A frosted strip spans the artwork; the cover cuts across it.</td>
+    <td width="50%"><img src="docs/styles/cinema.jpg" alt="Cinema"><br><b>Cinema</b><br>Letterbox bars, a drifting backdrop and a title revealed like a film opening.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/clasp.jpg" alt="Clasp"><br><b>Clasp</b><br>The cover and details slide in from both sides onto a frosted glass pane.</td>
+    <td><img src="docs/styles/drawer.jpg" alt="Drawer"><br><b>Drawer</b><br>A frosted glass panel slides out from behind the cover over the artwork.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/focus.jpg" alt="Focus"><br><b>Focus</b><br>The game's art pulls into focus; a frosted glass pill holds the title.</td>
+    <td><img src="docs/styles/gallery.jpg" alt="Gallery"><br><b>Gallery</b><br>The artwork and the cover hang side by side on a dark wall under a spotlight.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/iris.jpg" alt="Iris"><br><b>Iris</b><br>The art pulls into focus; the cover sits in a glossy smoked-glass disc.</td>
+    <td><img src="docs/styles/ledge.jpg" alt="Ledge"><br><b>Ledge</b><br>A frosted glass strip along the bottom; the cover rises above it and hovers.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/lock-on.jpg" alt="Lock-On"><br><b>Lock-On</b><br>Targeting brackets lock onto the cover, with HUD readouts beside it.</td>
+    <td><img src="docs/styles/loot-drop.jpg" alt="Loot Drop"><br><b>Loot Drop</b><br>The cover drops in a beam of light and flips like a rare item card.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/pane.jpg" alt="Pane"><br><b>Pane</b><br>A centered cover and title on a frosted glass pane over the sharp artwork.</td>
+    <td><img src="docs/styles/pendant.jpg" alt="Pendant"><br><b>Pendant</b><br>A hanging cover and its title on one frosted glass pane over the sharp artwork.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/plinth.jpg" alt="Plinth"><br><b>Plinth</b><br>The cover rises over a horizon line onto a frosted floor below the artwork.</td>
+    <td><img src="docs/styles/retro-black.jpg" alt="Retro Black"><br><b>Retro Black</b><br>A black text-mode setup screen over a blur of the game's colors.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/retro-gray.jpg" alt="Retro Gray"><br><b>Retro Gray</b><br>A retro text-mode setup screen over a blur of the game's colors.</td>
+    <td><img src="docs/styles/showcase.jpg" alt="Showcase"><br><b>Showcase</b><br>The cover stands in the middle of the artwork with a reflection and a sheen.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/showdown.jpg" alt="Showdown"><br><b>Showdown</b><br>A boss-intro title card: a diagonal band, speed lines and a slamming title.</td>
+    <td><img src="docs/styles/slant.jpg" alt="Slant"><br><b>Slant</b><br>Two parallel glass slabs knock together; the cover sits at one tip.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/styles/slate.jpg" alt="Slate"><br><b>Slate</b><br>The art pulls into focus; a glossy smoked-glass slate slides in from the left.</td>
+    <td><img src="docs/styles/custom.jpg" alt="Custom"><br><b>Custom</b><br>The game's background and logo, set up your way: the logo in one of six positions (corners, bottom center or center) at 0–90% of the screen width, background dimming, a vignette and a slow zoom.</td>
+  </tr>
+</table>
 
-Press **Esc**, click the mouse or press **B** on a gamepad (XInput controllers). Input arriving in the first moment after the splash appears is ignored, so the click or button press that launched the game cannot close it by accident. The splash screen also closes by itself when the game exits or its startup is cancelled.
+## Settings
 
-### Game context menu
+<p align="center">
+  <img src="docs/options.png" alt="Splash Plus settings" width="760">
+</p>
 
-Right-click one or more games and open **Splash Addon Plus** to:
+- **Desktop mode:** open **Add-ons… → Extension settings → Generic → Splash Plus**.
+- **Fullscreen mode:** open **Extensions → Splash Plus**. All the same options are there.
 
-- turn the splash screen off or back on for those games,
-- set or remove a custom display time,
-- preview the splash screen.
-
-No more copying game IDs by hand: the settings page lists these games by name, with a button to remove each one and, for fixed-time games, a field for the seconds.
-
-### Other changes
-
-- **Cancel** in the settings dialog now really discards changes, and **Save** stores them immediately.
-- The platform list also contains the platforms from your own library.
-- Per-platform times are a list you can extend, instead of ten fixed slots. The fixed-time options live in a collapsible **Advanced** section, since automatic detection makes them unnecessary for most people.
-- Optional diagnostic logging to `extensions.log` (off by default). This is useful when a game behaves unexpectedly.
-- On first start, settings of the original Splash Addon are imported automatically.
+- **Appearance:** the style, with a preview. Custom shows its own options here.
+- **Close the splash screen:** when the game appears (recommended) or after a fixed time.
+- **Games with their own settings:** games you turned off or gave a fixed time from the library's right-click menu, listed by name.
+- **Advanced:**
+  - the maximum waiting time;
+  - the minimum display time and the delay after the game is detected;
+  - detection of windowed games;
+  - programs whose windows are never the game (for launchers that fill the screen before the game starts);
+  - fixed times per platform;
+  - diagnostic logging.
 
 ## Installation
 
-1. Download the latest `.pext` file from [Releases](../../releases).
+1. Download the latest `.pext` file from [Releases](https://github.com/Ad1Bb/Splash-Plus/releases/latest).
 2. Double-click it, or drag it onto the Playnite window, and confirm the installation.
 3. Restart Playnite.
 
-If the original Splash Addon is installed, uninstall it, otherwise two splash screens will appear. Your settings are imported on the first start of Splash Addon Plus.
+Requires Playnite 10. Turn off any other splash-screen add-on, otherwise two splash screens will appear.
 
-## Limitations
+**Recommended:** install the **Extra Metadata Loader** add-on and download logos for your games. Splash Plus works without them (games without a logo show their name instead), but every style looks its best with the game's logo. For the fastest start, keep backgrounds and covers close to their original size, such as those downloaded from Steam, rather than very large wallpapers.
 
-- **Pop-ups during startup stay hidden.** The splash screen covers the whole screen and stays on top. If something shows a window while the game is starting, such as an update prompt, a login request, a missing runtime installer (.NET, DirectX, Visual C++) or an error message, it ends up under the splash screen, which keeps waiting. Close the splash screen with **Esc**, a mouse click or **B** on a gamepad, or wait for the maximum waiting time. If this happens every time with one game, turn the splash screen off for it or give it a fixed time.
-- **Games without a large window** (a small window, or only a launcher that stays open) are not detected. The splash screen closes after the maximum waiting time or by hand.
-- **Programs that fill the screen before the game** can close the splash screen too early. Add their process name to *Programs whose windows are never the game*.
-- **Several monitors:** the splash screen opens on the monitor Windows chooses for new windows, usually the primary one.
-- **Gamepad:** only XInput controllers. PlayStation controllers work through a tool such as DS4Windows.
-- **Logos** come from the Extra Metadata Loader add-on. Games without a downloaded logo are shown without one.
+## Good to know
+
+- **Pop-ups during startup stay under the splash screen.** If something shows a window while the game is starting (an update prompt, a login request, a runtime installer), close the splash screen with **Esc**, a click or **B**. If it happens every time with one game, turn the splash screen off for it or give it a fixed time.
+- **Launchers that fill the screen** before the game can close the splash screen too early. Add their process name to *Programs whose windows are never the game*.
+- **Games without a large window** (a small window, or only a launcher that stays open) are not detected; the splash screen closes after the maximum waiting time or by hand.
+- **Gamepads:** XInput controllers. PlayStation controllers work through a tool such as DS4Windows.
 
 ## Troubleshooting
 
 If the splash screen closes too early, too late, or not at all for a particular game:
 
-1. Turn on **Diagnostics → Write details about what the add-on does to the log file** in the add-on settings.
+1. Open the settings, expand **Advanced** and turn on **Write details to the log file**.
 2. Start the game.
 3. Open `%AppData%\Playnite\extensions.log` (for a portable installation, the file is in the Playnite folder) and search for `splash`. The log shows which windows appeared while the game was loading and why the splash screen closed.
 
-Turn the option off again afterwards. Feel free to attach these lines to an issue.
+Turn the option off again afterwards. Feel free to attach these lines to an [issue](https://github.com/Ad1Bb/Splash-Plus/issues).
 
 ## Building
 
-The project is an SDK-style C# project targeting .NET Framework 4.8. Playnite SDK and the reference assemblies come from NuGet, so nothing has to be installed besides the .NET SDK. The settings page is built in code (no XAML), so the project also builds on Linux and macOS.
+The project is an SDK-style C# project targeting .NET Framework 4.8. The Playnite SDK and the reference assemblies come from NuGet, so only the .NET SDK is needed. The settings page and all styles are built in code (no XAML), so the project also builds on Linux and macOS.
 
 ```
 dotnet build SplashAddonPlus.csproj -c Release
@@ -83,17 +135,14 @@ dotnet build SplashAddonPlus.csproj -c Release
 
 The output is `bin/Release/SplashAddonPlus.dll`. A `.pext` package is a ZIP archive containing `SplashAddonPlus.dll`, `extension.yaml` and `icon.png`.
 
-The tests cover everything that does not need Windows (settings and their migration, detection rules, image sizes, the gamepad button logic). They run on .NET 8 against the built DLL:
+The tests cover everything that does not need Windows: settings and their migration, detection rules, texts and translations, image sizes and the gamepad logic. They run on .NET 8 against the built DLL:
 
 ```
 dotnet run --project Tests -c Release
 ```
 
-GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `1.0.0`) publishes a release with the package attached.
+GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `2.0`) publishes a release with the package attached.
 
-## License and credits
+---
 
-- Original add-on: **Splash Addon** by [Artzox](https://github.com/artzox).
-- Splash Addon Plus: **Ad1Bb**.
-
-The upstream repository does not include a license file. This fork keeps the original history and clearly credits the original author. If you are the author of the original add-on and would like anything changed, please open an issue.
+Started as a fork of [Splash Addon](https://github.com/artzox/Playnite-Splash-Addon) by Artzox.

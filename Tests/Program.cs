@@ -1,4 +1,4 @@
-// Tests for the parts of Splash Addon Plus that do not need Windows: settings, migration of old settings,
+// Tests for the parts of Splash Plus that do not need Windows: settings, migration of old settings,
 // detection rules, image sizes and the gamepad button logic.
 // Build the add-on first (dotnet build SplashAddonPlus.csproj -c Release), then: dotnet run --project Tests -c Release
 // The exit code is the number of failed checks.
@@ -18,8 +18,9 @@ string oldJson = @"{""ExcludedGameIds"":[""aaa""],""SplashScreenDuration"":12,""
  ""Platform1"":""PC (Windows)"",""Duration1"":7,""Platform2"":""Nintendo Switch"",""Duration2"":20,""Platform3"":""PC (Windows)"",""Duration3"":99}";
 var s = JsonConvert.DeserializeObject<SplashAddonSettings>(oldJson);
 s.Upgrade(); // the plugin does this right after loading
-Check(s.SplashScreenDuration == 12 && s.LogoSize == 250 && s.UseGameStartedTimer, "old values kept");
-Check(s.AutoDetectFullscreen && s.MinimumDisplaySeconds == 2 && s.DetectionDelaySeconds == 1 && s.MaximumWaitSeconds == 60, "new fields default");
+Check(s.SplashScreenDuration == 12 && s.LogoSize == 250, "old values kept");
+Check(!JsonConvert.SerializeObject(s).Contains("UseGameStartedTimer"), "removed \"count from game start\" option is dropped");
+Check(s.AutoDetectFullscreen && s.MinimumDisplaySeconds == 2 && s.DetectionDelaySeconds == 5 && s.MaximumWaitSeconds == 60, "new fields default");
 Check(s.IsExcluded("aaa") && s.IsExcluded("AAA") && !s.IsExcluded("bbb"), "IsExcluded");
 
 // 2) Duration priority + duplicate platform no longer throws.
@@ -134,7 +135,7 @@ Check(dl.EnableDiagnosticLogging, "cancel restores logging flag");
     Check(w.PollForBPress(true) == -1, "unplugged controller ignored");
 }
 
-// 11) English-only texts.
+// 11) English texts (the default before Playnite's language is set).
 Check(Loc.MenuPreview == "Show splash screen preview", "menu text in English");
 var bad = new SplashAddonSettings { MaximumWaitSeconds = 0 };
 bad.VerifySettings(out var enErrors);
@@ -244,6 +245,150 @@ ed.BeginEdit(); ed.GameSpecificDurations["g1"] = 40; ed.CancelEdit();
 Check(ed.GameSpecificDurations["g1"] == 15, "cancel restores an edited game time");
 ed.BeginEdit(); ed.GameSpecificDurations["g1"] = 0;
 Check(!ed.VerifySettings(out _), "a 0 s game time is reported on Save");
+
+// 18) Splash styles: setting, game details and the texts they show.
+Check(new SplashAddonSettings().Style == SplashStyle.Classic, "Classic style by default");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>(oldJson).Style == SplashStyle.Classic, "old configs keep the Classic look");
+var st = new SplashAddonSettings { Style = SplashStyle.Showcase };
+string stJson = JsonConvert.SerializeObject(st);
+Check(stJson.Contains("\"Style\":\"Showcase\"") && JsonConvert.DeserializeObject<SplashAddonSettings>(stJson).Style == SplashStyle.Showcase, "style saved as a readable name");
+st.BeginEdit(); st.Style = SplashStyle.Cinema; st.CancelEdit();
+Check(st.Style == SplashStyle.Showcase, "cancel restores the style");
+
+Check(SplashText.Playtime(0) == null && SplashText.Playtime(59) == "1m" && SplashText.Playtime(600) == "10m"
+      && SplashText.Playtime((42 * 60 + 10) * 60) == "42h 10m" && SplashText.Playtime(3600) == "1h 0m"
+      && SplashText.Playtime(150UL * 3600 + 120) == "150h", "play time format");
+Check(SplashText.Join(" · ", "2020", null, " ", "RPG") == "2020 · RPG" && SplashText.Join(" · ", null, "") == null, "details skip empty parts");
+Check(Math.Abs(SplashText.LetterboxShare(1920, 1080) - 0.128) < 0.001 && SplashText.LetterboxShare(1920, 1200) == 0.13
+      && SplashText.LetterboxShare(2560, 1080) == 0.04 && SplashText.LetterboxShare(5120, 1440) == 0.04, "letterbox bars for 16:9, 16:10, 21:9, 32:9");
+
+var removedStyle = JsonConvert.DeserializeObject<SplashAddonSettings>("{\"Style\":\"Slash\",\"MaximumWaitSeconds\":30}");
+Check(removedStyle.Style == SplashStyle.Classic && removedStyle.MaximumWaitSeconds == 30, "a removed or unknown style falls back to Classic, other settings stay");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>("{\"Style\":7}").Style == SplashStyle.Classic
+      && JsonConvert.DeserializeObject<SplashAddonSettings>("{\"Style\":null}").Style == SplashStyle.Classic, "odd style values fall back to Classic");
+
+// 19) Settings page: one "when to close" choice, style options, one per-game table.
+var cm = new SplashAddonSettings();
+Check(cm.CloseMode == CloseMode.WhenGameAppears, "close mode: detection by default");
+var cmEvents = new List<string>();
+cm.PropertyChanged += (o, e) => cmEvents.Add(e.PropertyName);
+cm.CloseMode = CloseMode.FixedTime;
+Check(!cm.AutoDetectFullscreen && cm.CloseMode == CloseMode.FixedTime && cmEvents.Contains("CloseMode"), "close mode: fixed time");
+cm.CloseMode = CloseMode.WhenGameAppears;
+Check(cm.AutoDetectFullscreen && cm.CloseMode == CloseMode.WhenGameAppears, "close mode: back to detection");
+Check(!JsonConvert.SerializeObject(cm).Contains("CloseMode"), "close mode is not saved separately");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>("{\"AutoDetectFullscreen\":false,\"UseGameStartedTimer\":true}").CloseMode == CloseMode.FixedTime,
+      "old \"count from game start\" setting reads as fixed time");
+Check(Enum.GetValues(typeof(CloseMode)).Length == 2, "two close modes");
+
+Check(StyleOptions.Customizable(SplashStyle.Classic) && !StyleOptions.Customizable(SplashStyle.Cinema) && !StyleOptions.Customizable(SplashStyle.PopFrost), "look options only in Custom (saved as Classic)");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>("{\"Style\":\"Vhs\"}").Style == SplashStyle.Classic
+      && JsonConvert.DeserializeObject<SplashAddonSettings>("{\"Style\":\"EightBit\"}").Style == SplashStyle.Classic, "removed VHS and 8-Bit styles fall back to Custom");
+
+var pg = new SplashAddonSettings { SplashScreenDuration = 12 };
+pg.SetExcluded(new[] { "a" }, true);
+pg.SetGameSpecificDuration(new[] { "b" }, 30);
+Check(pg.GamesWithOwnSettings.OrderBy(x => x).SequenceEqual(new[] { "a", "b" }), "one table lists turned-off and fixed-time games");
+pg.SetGameSplashOff("a", false);
+Check(!pg.IsExcluded("a") && pg.GameSpecificDurations["a"] == 12, "Off → fixed time uses the default time");
+pg.SetGameSplashOff("b", true);
+Check(pg.IsExcluded("b") && !pg.HasGameSpecificDuration("b"), "fixed time → Off");
+pg.SetGameSplashOff("b", false);
+Check(pg.GameSpecificDurations["b"] == 12 && !pg.IsExcluded("b"), "back to fixed time");
+pg.ForgetGame("a"); pg.ForgetGame("b");
+Check(!pg.GamesWithOwnSettings.Any(), "remove takes the game out of both lists");
+foreach (SplashStyle style in new[] { SplashStyle.Cinema, SplashStyle.Showcase, SplashStyle.Gallery, SplashStyle.Plinth, SplashStyle.Drawer, SplashStyle.Band,
+                                      SplashStyle.TextMode, SplashStyle.TextModeDark,
+                                      SplashStyle.PopFrost, SplashStyle.SwingFrost, SplashStyle.MeetFrost, SplashStyle.RiseFrost,
+                                      SplashStyle.LootDrop, SplashStyle.LockOn, SplashStyle.Showdown, SplashStyle.Focus,
+                                      SplashStyle.Slant, SplashStyle.IrisGloss, SplashStyle.SlateGloss })
+{
+    var saved = JsonConvert.DeserializeObject<SplashAddonSettings>(JsonConvert.SerializeObject(new SplashAddonSettings { Style = style }));
+    Check(saved.Style == style, "style round-trips: " + style);
+}
+
+Check(Math.Abs(SplashText.CoverAspect(null) - 2.0 / 3) < 1e-9 && SplashText.CoverAspect(0.4) == 0.55 && SplashText.CoverAspect(1.78) == 1.0
+      && SplashText.CoverAspect(0.75) == 0.75 && Math.Abs(SplashText.CoverAspect(double.NaN) - 2.0 / 3) < 1e-9, "cover proportions limited to 0.55-1.0, 2:3 when unknown");
+
+var gi2 = SplashGameInfo.FromGame(new Playnite.SDK.Models.Game("The Elder Scrolls V: Skyrim Special Edition"), "PC (Windows)");
+Check(gi2.Name.StartsWith("The Elder") && gi2.Platform == "PC (Windows)" && gi2.Developer == null && gi2.ReleaseYear == null, "game details from a game outside the library");
+Check(SplashGameInfo.FromGame(null, null).Name == "" && gi2.Library == null, "no game, no library");
+
+// Loot Drop and Lock-On details: score, rating marks, whole hours, the rarity color.
+var scored = new Playnite.SDK.Models.Game("Scored") { CriticScore = null, CommunityScore = 0, UserScore = 84 };
+Check(SplashGameInfo.FromGame(scored, null).Score == 84, "score: first one above 0 (critic, community, user)");
+Check(SplashGameInfo.FromGame(new Playnite.SDK.Models.Game("x") { CriticScore = 71, UserScore = 90 }, null).Score == 71, "critic score first");
+Check(SplashGameInfo.FromGame(new Playnite.SDK.Models.Game("x"), null).Score == null, "no score");
+Check(SplashText.RatingMarks(84) == 4 && SplashText.RatingMarks(90) == 5 && SplashText.RatingMarks(50) == 3
+      && SplashText.RatingMarks(5) == 0 && SplashText.RatingMarks(100) == 5 && SplashText.RatingMarks(null) == null, "rating marks out of 5");
+Check(SplashText.Hours(0) == null && SplashText.Hours(59) == "<1h" && SplashText.Hours(3599) == "<1h"
+      && SplashText.Hours(42 * 3600 + 3000) == "42h", "whole hours played");
+
+byte[] Pixels(int count, byte r, byte g, byte b, byte a = 255)
+{
+    var px = new byte[count * 4];
+    for (int i = 0; i < count; i++) { px[4 * i] = b; px[4 * i + 1] = g; px[4 * i + 2] = r; px[4 * i + 3] = a; }
+    return px;
+}
+Check(RarityTint.FromPixels(Pixels(1024, 128, 128, 128), 1024) == RarityTint.Neutral, "grey image: neutral tint");
+Check(RarityTint.FromPixels(Pixels(1024, 20, 0, 0), 1024) == RarityTint.Neutral, "too dark: neutral tint");
+Check(RarityTint.FromPixels(Pixels(1024, 255, 0, 0, 0), 1024) == RarityTint.Neutral, "transparent: neutral tint");
+int red = RarityTint.FromPixels(Pixels(1024, 200, 30, 30), 1024);
+Check(red == 0xEB7A7A,$"red cover: light red tint (got {red:X6})");
+int blue = RarityTint.FromPixels(Pixels(1024, 40, 90, 220), 1024);
+Check((blue & 0xFF) > ((blue >> 16) & 0xFF) && Math.Abs(((blue >> 16) & 0xFF) + (blue & 0xFF) - 2 * 179) <= 2, $"blue cover: light blue tint, lightness 0.70 (got {blue:X6})");
+// A little color on a grey image stays neutral (at most 3% of the weight); more of it wins.
+var mixed = Pixels(1024, 128, 128, 128);
+for (int i = 0; i < 20; i++) { mixed[4 * i] = 0; mixed[4 * i + 1] = 200; mixed[4 * i + 2] = 0; }
+Check(RarityTint.FromPixels(mixed, 1024) == RarityTint.Neutral, "a few colored pixels: neutral");
+for (int i = 0; i < 200; i++) { mixed[4 * i] = 0; mixed[4 * i + 1] = 200; mixed[4 * i + 2] = 0; }
+int green = RarityTint.FromPixels(mixed, 1024);
+Check(((green >> 8) & 0xFF) > ((green >> 16) & 0xFF) && ((green >> 8) & 0xFF) > (green & 0xFF), $"enough green: green tint (got {green:X6})");
+
+// Translations: every language has exactly the English keys, no empty texts, the same {0} placeholders.
+var englishTable = Loc.Table("en");
+Check(Loc.Languages.SequenceEqual(new[] { "en", "de", "fr", "es", "it", "pt", "pl", "ru", "zh" }), "language order");
+foreach (string lang in Loc.Languages)
+{
+    var table = Loc.Table(lang);
+    Check(table != null, "table exists: " + lang);
+    if (table == null) continue;
+    var missing = englishTable.Keys.Where(k => !table.ContainsKey(k)).ToList();
+    var extra = table.Keys.Where(k => !englishTable.ContainsKey(k)).ToList();
+    Check(missing.Count == 0 && extra.Count == 0, $"{lang}: same keys (missing: {string.Join(",", missing)}; extra: {string.Join(",", extra)})");
+    var empty = table.Where(p => string.IsNullOrWhiteSpace(p.Value)).Select(p => p.Key).ToList();
+    Check(empty.Count == 0, $"{lang}: no empty texts {string.Join(",", empty)}");
+    var placeholders = englishTable.Keys.Where(table.ContainsKey)
+        .Where(k => englishTable[k].Contains("{0}") != table[k].Contains("{0}") || table[k].Contains("{1}")).ToList();
+    Check(placeholders.Count == 0, $"{lang}: placeholders match {string.Join(",", placeholders)}");
+}
+
+// Every translated property has an English text (a missing key would throw).
+foreach (var prop in typeof(Loc).GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+             .Where(p => p.PropertyType == typeof(string) && p.Name != "Language"))
+{
+    string value = null;
+    try { value = (string)prop.GetValue(null); } catch { }
+    if (string.IsNullOrEmpty(value)) Check(false, "English text for " + prop.Name);
+}
+
+// The language follows Playnite's language code; unsupported ones fall back to English.
+foreach (var (code, expected) in new[] { ("pl_PL", "pl"), ("de_DE", "de"), ("pt_BR", "pt"), ("pt_PT", "pt"), ("zh_CN", "zh"),
+                                         ("zh_TW", "en"), ("en_US", "en"), ("cs_CZ", "en"), ("", "en"), (null, "en") })
+{
+    Loc.SetLanguage(code);
+    Check(Loc.Language == expected, $"language {code ?? "null"} -> {expected} (got {Loc.Language})");
+}
+Loc.SetLanguage("pl_PL");
+Check(Loc.MenuPreview == "Pokaż podgląd ekranu powitalnego" && Loc.UnknownGame("abc") == "Nieznana gra (abc)"
+      && Loc.AskDuration("Forza", 1).Contains("„Forza”") && Loc.Starting == "Uruchamianie...", "Polish texts in use");
+var plErrors = new List<string>();
+new SplashAddonSettings { MaximumWaitSeconds = 0 }.VerifySettings(out plErrors);
+Check(plErrors.Count == 1 && plErrors[0].StartsWith("Maksymalny czas"), "validation error in Polish");
+Loc.SetLanguage("de_DE");
+Check(Loc.SectionAppearance == "Darstellung" && Loc.StyleCinema == "Cinema", "German texts; style names stay");
+Loc.SetLanguage("en_US");
+Check(Loc.MenuPreview == "Show splash screen preview", "back to English");
 
 Console.WriteLine(failures == 0 ? "ALL PASSED" : $"{failures} FAILED");
 return failures;

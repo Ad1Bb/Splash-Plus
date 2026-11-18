@@ -16,9 +16,6 @@ namespace SplashAddonPlus
         /// <summary>Close after a fixed number of seconds from the moment the splash appears.</summary>
         FixedTime,
 
-        /// <summary>Wait for Playnite's "game started" event, then count down the rest of the time.</summary>
-        WaitForGameStarted,
-
         /// <summary>Close once a game window covers the whole screen.</summary>
         AutoDetect
     }
@@ -40,6 +37,10 @@ namespace SplashAddonPlus
 
         public SplashAppearance Appearance { get; set; }
         public SplashImageSources Images { get; set; }
+        public SplashStyle Style { get; set; }
+
+        /// <summary>Game details shown by the Cinema and Showcase styles.</summary>
+        public SplashGameInfo GameInfo { get; set; }
 
         /// <summary>Write details about detection to extensions.log (off by default).</summary>
         public bool DiagnosticLogging { get; set; }
@@ -63,7 +64,7 @@ namespace SplashAddonPlus
         private const int OutsideFolderExtraSeconds = 3;
 
         private readonly SplashSessionOptions _options;
-        private readonly SplashScene _scene;
+        private readonly ISplashScene _scene;
         private readonly Window _window;
         private MonitorArea _monitor;
         private readonly List<DispatcherTimer> _timers = new List<DispatcherTimer>();
@@ -88,9 +89,56 @@ namespace SplashAddonPlus
             GameId = game.Id;
             GameName = game.Name;
             _options = options;
-            _scene = new SplashScene(options.Appearance);
+            _scene = CreateScene(options);
             _window = CreateCoverWindow(_scene.Root);
             _window.Title = "SplashAddonPlusSplashScreen";
+        }
+
+        private static ISplashScene CreateScene(SplashSessionOptions options)
+        {
+            switch (options.Style)
+            {
+                case SplashStyle.Cinema:
+                    return new CinemaScene(options.GameInfo, options.Images);
+                case SplashStyle.Showcase:
+                    return new ShowcaseScene(options.GameInfo, options.Images);
+                case SplashStyle.Gallery:
+                    return new GalleryScene(options.GameInfo, options.Images);
+                case SplashStyle.Plinth:
+                    return new PlinthScene(options.GameInfo, options.Images);
+                case SplashStyle.Drawer:
+                    return new DrawerScene(options.GameInfo, options.Images);
+                case SplashStyle.Band:
+                    return new BandScene(options.GameInfo, options.Images);
+                case SplashStyle.TextMode:
+                    return new TextModeScene(options.GameInfo, options.Images, TextModeScene.Palette.Light);
+                case SplashStyle.TextModeDark:
+                    return new TextModeScene(options.GameInfo, options.Images, TextModeScene.Palette.Dark);
+                case SplashStyle.PopFrost:
+                    return new PopFrostScene(options.GameInfo, options.Images);
+                case SplashStyle.SwingFrost:
+                    return new SwingFrostScene(options.GameInfo, options.Images);
+                case SplashStyle.MeetFrost:
+                    return new MeetFrostScene(options.GameInfo, options.Images);
+                case SplashStyle.RiseFrost:
+                    return new RiseFrostScene(options.GameInfo, options.Images);
+                case SplashStyle.LootDrop:
+                    return new LootDropScene(options.GameInfo, options.Images);
+                case SplashStyle.LockOn:
+                    return new LockOnScene(options.GameInfo, options.Images);
+                case SplashStyle.Showdown:
+                    return new ShowdownScene(options.GameInfo, options.Images);
+                case SplashStyle.Focus:
+                    return new FocusScene(options.GameInfo, options.Images);
+                case SplashStyle.Slant:
+                    return new SlantScene(options.GameInfo, options.Images);
+                case SplashStyle.IrisGloss:
+                    return new IrisGlossScene(options.GameInfo, options.Images);
+                case SplashStyle.SlateGloss:
+                    return new SlateGlossScene(options.GameInfo, options.Images);
+                default:
+                    return new SplashScene(options.Appearance);
+            }
         }
 
         public event EventHandler Closed;
@@ -98,12 +146,6 @@ namespace SplashAddonPlus
         public Guid GameId { get; }
 
         public string GameName { get; }
-
-        public SplashMode Mode => _options.Mode;
-
-        public int DurationSeconds => _options.DurationSeconds;
-
-        public bool IsWaitingForGameStarted => _options.Mode == SplashMode.WaitForGameStarted && !_countdownStarted && !_closing;
 
         public void Show()
         {
@@ -179,10 +221,6 @@ namespace SplashAddonPlus
                     StartCountdown(_options.DurationSeconds);
                     break;
 
-                case SplashMode.WaitForGameStarted:
-                    StartSafetyTimer();
-                    break;
-
                 case SplashMode.AutoDetect:
                     StartSafetyTimer();
                     StartTimer(PollInterval, PollForGameWindow, repeat: true);
@@ -191,7 +229,7 @@ namespace SplashAddonPlus
         }
 
         /// <summary>Starts the regular countdown; 0 or less closes the splash right away.</summary>
-        public void StartCountdown(int seconds)
+        private void StartCountdown(int seconds)
         {
             if (_closing || _countdownStarted)
             {
@@ -210,7 +248,7 @@ namespace SplashAddonPlus
             StartTimer(TimeSpan.FromSeconds(seconds), FadeOutAndClose);
         }
 
-        public double SecondsSinceShown => (DateTime.Now - _shownAt).TotalSeconds;
+        private double SecondsSinceShown => (DateTime.Now - _shownAt).TotalSeconds;
 
         public void FadeOutAndClose()
         {
@@ -222,6 +260,7 @@ namespace SplashAddonPlus
             _closing = true;
             StopTimers();
             StopGamepad();
+            _scene.OnClosing();
 
             var fadeOut = new DoubleAnimation { To = 0.0, Duration = FadeDuration };
             fadeOut.Completed += (s, e) => CloseWindow();

@@ -1,13 +1,13 @@
 Id: SplashAddonPlus_Ad1Bb
-Name: Splash Addon Plus
-Author: Artzox / Ad1Bb
-Version: 1.0.0
+Name: Splash Plus
+Author: Ad1Bb
+Version: 2.0
 Module: SplashAddonPlus.dll
 Type: GenericPlugin
 EntryPoint: SplashAddonPlus.SplashAddonPlugin
 Icon: icon.png
 Links:
     - Name: GitHub
-      Url: https://github.com/Ad1Bb/Playnite-Splash-Addon-Plus
+      Url: https://github.com/Ad1Bb/Splash-Plus
     - Name: Bug tracker
-      Url: https://github.com/Ad1Bb/Playnite-Splash-Addon-Plus/issues
+      Url: https://github.com/Ad1Bb/Splash-Plus/issues

@@ -15,12 +15,11 @@ namespace SplashAddonPlus
         private int _splashScreenDuration = 10;
         private bool _usePlatformSpecificTimers;
         private Dictionary<string, int> _gameSpecificDurations = new Dictionary<string, int>();
-        private bool _useGameStartedTimer;
         private int _logoSize = 300;
 
         private bool _autoDetectFullscreen = true;
         private int _minimumDisplaySeconds = 2;
-        private int _detectionDelaySeconds = 1;
+        private int _detectionDelaySeconds = 5;
         private int _maximumWaitSeconds = 60;
         private List<string> _ignoredProcessNames = new List<string>();
         private bool _enableDiagnosticLogging;
@@ -32,6 +31,7 @@ namespace SplashAddonPlus
         private int _backgroundDimPercent;
         private bool _backgroundVignette;
         private bool _backgroundZoom;
+        private SplashStyle _style = SplashStyle.Classic;
         private ObservableCollection<PlatformDuration> _platformDurations = new ObservableCollection<PlatformDuration>();
 
         private string _editBackup;
@@ -39,7 +39,26 @@ namespace SplashAddonPlus
         // ----- Automatic fullscreen detection -----
 
         [JsonProperty("AutoDetectFullscreen")]
-        public bool AutoDetectFullscreen { get => _autoDetectFullscreen; set => SetValue(ref _autoDetectFullscreen, value, "AutoDetectFullscreen"); }
+        public bool AutoDetectFullscreen
+        {
+            get => _autoDetectFullscreen;
+            set
+            {
+                SetValue(ref _autoDetectFullscreen, value, "AutoDetectFullscreen");
+                OnPropertyChanged("CloseMode");
+            }
+        }
+
+        /// <summary>
+        /// The settings page's single "when to close" choice, stored in <see cref="AutoDetectFullscreen"/>
+        /// (unchanged, so older settings keep working).
+        /// </summary>
+        [JsonIgnore]
+        public CloseMode CloseMode
+        {
+            get => AutoDetectFullscreen ? CloseMode.WhenGameAppears : CloseMode.FixedTime;
+            set => AutoDetectFullscreen = value == CloseMode.WhenGameAppears;
+        }
 
         [JsonProperty("MinimumDisplaySeconds")]
         public int MinimumDisplaySeconds { get => _minimumDisplaySeconds; set => SetValue(ref _minimumDisplaySeconds, value, "MinimumDisplaySeconds"); }
@@ -115,9 +134,6 @@ namespace SplashAddonPlus
             }
         }
 
-        [JsonProperty("UseGameStartedTimer")]
-        public bool UseGameStartedTimer { get => _useGameStartedTimer; set => SetValue(ref _useGameStartedTimer, value, "UseGameStartedTimer"); }
-
         /// <summary>Logo width in pixels, as saved by the original Splash Addon. Kept only to derive <see cref="LogoWidthPercent"/> for imported settings.</summary>
         [JsonProperty("LogoSize")]
         public int LogoSize { get => _logoSize; set => SetValue(ref _logoSize, value, "LogoSize"); }
@@ -146,6 +162,9 @@ namespace SplashAddonPlus
 
         [JsonProperty("BackgroundZoom")]
         public bool BackgroundZoom { get => _backgroundZoom; set => SetValue(ref _backgroundZoom, value, "BackgroundZoom"); }
+
+        [JsonProperty("Style"), JsonConverter(typeof(SplashStyleConverter))]
+        public SplashStyle Style { get => _style; set => SetValue(ref _style, value, "Style"); }
 
         [JsonProperty("PlatformDurations", ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public ObservableCollection<PlatformDuration> PlatformDurations
@@ -439,6 +458,38 @@ namespace SplashAddonPlus
             }
 
             GameSpecificDurations = durations;
+        }
+
+        /// <summary>Games listed in either per-game setting (the settings page shows them in one table).</summary>
+        [JsonIgnore]
+        internal IEnumerable<string> GamesWithOwnSettings =>
+            (ExcludedGameIds ?? new List<string>()).Concat(GameSpecificDurations?.Keys ?? Enumerable.Empty<string>());
+
+        /// <summary>
+        /// One game's row in the per-game table: "Off" turns its splash screen off, otherwise it gets a fixed time
+        /// (keeping one it already had, else the default time).
+        /// </summary>
+        internal void SetGameSplashOff(string gameId, bool off)
+        {
+            if (off)
+            {
+                SetGameSpecificDuration(new[] { gameId }, null);
+                SetExcluded(new[] { gameId }, true);
+                return;
+            }
+
+            SetExcluded(new[] { gameId }, false);
+            if (!HasGameSpecificDuration(gameId))
+            {
+                SetGameSpecificDuration(new[] { gameId }, SplashScreenDuration > 0 ? SplashScreenDuration : 10);
+            }
+        }
+
+        /// <summary>Removes a game from both per-game settings.</summary>
+        internal void ForgetGame(string gameId)
+        {
+            SetGameSpecificDuration(new[] { gameId }, null);
+            SetExcluded(new[] { gameId }, false);
         }
 
         // ----- ISettings / IEditableObject -----
