@@ -32,6 +32,7 @@ namespace SplashAddonPlus
         private bool _backgroundVignette;
         private bool _backgroundZoom;
         private SplashStyle _style = SplashStyle.Classic;
+        private DesktopSplashSize _desktopSplashSize = DesktopSplashSize.FullScreen;
         private ObservableCollection<PlatformDuration> _platformDurations = new ObservableCollection<PlatformDuration>();
 
         private string _editBackup;
@@ -165,6 +166,14 @@ namespace SplashAddonPlus
 
         [JsonProperty("Style"), JsonConverter(typeof(SplashStyleConverter))]
         public SplashStyle Style { get => _style; set => SetValue(ref _style, value, "Style"); }
+
+        /// <summary>Splash screen size in Playnite's Desktop mode; Fullscreen mode always fills the screen.</summary>
+        [JsonProperty("DesktopSplashSize"), JsonConverter(typeof(SafeEnumConverter<DesktopSplashSize>))]
+        public DesktopSplashSize DesktopSplashSize
+        {
+            get => _desktopSplashSize;
+            set => SetValue(ref _desktopSplashSize, value, "DesktopSplashSize");
+        }
 
         [JsonProperty("PlatformDurations", ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public ObservableCollection<PlatformDuration> PlatformDurations

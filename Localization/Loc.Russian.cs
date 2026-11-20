@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Неизвестная игра ({0})",
 
             ["SectionAdvanced"] = "Дополнительно",
+
+            ["DesktopSplashSize"] = "Размер заставки в режиме рабочего стола",
+
+            ["SizeFullScreen"] = "Весь экран",
+
+            ["SizeLarge"] = "Большое окно (75% экрана)",
+
+            ["SizeSmall"] = "Маленькое окно (50% экрана)",
+
+            ["DesktopSplashSizeHint"] = "Только для режима рабочего стола. Полноэкранный режим не меняется: там заставка всегда занимает весь экран.",
             ["SectionPlatformTimes"] = "Заданное время для платформ",
             ["PlatformTimersToggle"] = "Отдельное время для каждой платформы",
             ["PlatformColumn"] = "Платформа",

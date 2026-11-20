@@ -175,6 +175,11 @@ namespace SplashAddonPlus
         public static string UnknownGame(string id) => string.Format(T(), id);
 
         public static string SectionAdvanced => T();
+        public static string DesktopSplashSize => T();
+        public static string SizeFullScreen => T();
+        public static string SizeLarge => T();
+        public static string SizeSmall => T();
+        public static string DesktopSplashSizeHint => T();
         public static string SectionPlatformTimes => T();
         public static string PlatformTimersToggle => T();
         public static string PlatformColumn => T();
@@ -289,6 +294,11 @@ namespace SplashAddonPlus
 
             // Settings: advanced
             ["SectionAdvanced"] = "Advanced",
+            ["DesktopSplashSize"] = "Splash screen size in Desktop mode",
+            ["SizeFullScreen"] = "Full screen",
+            ["SizeLarge"] = "Large window (75% of the screen)",
+            ["SizeSmall"] = "Small window (50% of the screen)",
+            ["DesktopSplashSizeHint"] = "Only for Desktop mode. Fullscreen mode is not affected: there the splash screen always fills the screen.",
             ["SectionPlatformTimes"] = "Fixed time per platform",
             ["PlatformTimersToggle"] = "Separate times per platform",
             ["PlatformColumn"] = "Platform",

@@ -307,6 +307,22 @@ foreach (SplashStyle style in new[] { SplashStyle.Cinema, SplashStyle.Showcase, 
     Check(saved.Style == style, "style round-trips: " + style);
 }
 
+// Splash size in Desktop mode
+Check(new SplashAddonSettings().DesktopSplashSize == DesktopSplashSize.FullScreen
+      && JsonConvert.DeserializeObject<SplashAddonSettings>(oldJson).DesktopSplashSize == DesktopSplashSize.FullScreen, "full screen by default and for old configs");
+string sizeJson = JsonConvert.SerializeObject(new SplashAddonSettings { DesktopSplashSize = DesktopSplashSize.Small });
+Check(sizeJson.Contains("\"DesktopSplashSize\":\"Small\"")
+      && JsonConvert.DeserializeObject<SplashAddonSettings>(sizeJson).DesktopSplashSize == DesktopSplashSize.Small, "splash size saved by name");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>("{\"DesktopSplashSize\":\"Huge\"}").DesktopSplashSize == DesktopSplashSize.FullScreen
+      && JsonConvert.DeserializeObject<SplashAddonSettings>("{\"DesktopSplashSize\":3}").DesktopSplashSize == DesktopSplashSize.FullScreen, "unknown size reads as full screen");
+Check(SplashWindowPlacement.Fraction(DesktopSplashSize.FullScreen) == 1 && SplashWindowPlacement.Fraction(DesktopSplashSize.Large) == 0.75
+      && SplashWindowPlacement.Fraction(DesktopSplashSize.Small) == 0.5, "size shares");
+int[] place = SplashWindowPlacement.Compute(1920, 1080, 0, 0, 1920, 1040, 0.75);
+Check(place.SequenceEqual(new[] { 240, 115, 1440, 810 }), "75% window centered in the work area: " + string.Join(",", place));
+place = SplashWindowPlacement.Compute(2560, 1440, -2560, 0, 2560, 1400, 0.5);
+Check(place.SequenceEqual(new[] { -1920, 340, 1280, 720 }), "50% window on a second monitor left of the primary: " + string.Join(",", place));
+place = SplashWindowPlacement.Compute(1920, 1080, 0, 0, 1920, 700, 0.75);
+Check(place[3] <= 700 && place[2] == (int)Math.Round(1920 * 700 / 1080.0) && place[1] == 0, "never taller than the work area, proportions kept: " + string.Join(",", place));
 Check(Math.Abs(SplashText.CoverAspect(null) - 2.0 / 3) < 1e-9 && SplashText.CoverAspect(0.4) == 0.55 && SplashText.CoverAspect(1.78) == 1.0
       && SplashText.CoverAspect(0.75) == 0.75 && Math.Abs(SplashText.CoverAspect(double.NaN) - 2.0 / 3) < 1e-9, "cover proportions limited to 0.55-1.0, 2:3 when unknown");
 

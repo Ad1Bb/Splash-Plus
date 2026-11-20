@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Gioco sconosciuto ({0})",
 
             ["SectionAdvanced"] = "Avanzate",
+
+            ["DesktopSplashSize"] = "Dimensione della schermata di avvio in modalità Desktop",
+
+            ["SizeFullScreen"] = "Schermo intero",
+
+            ["SizeLarge"] = "Finestra grande (75% dello schermo)",
+
+            ["SizeSmall"] = "Finestra piccola (50% dello schermo)",
+
+            ["DesktopSplashSizeHint"] = "Solo per la modalità Desktop. La modalità Schermo intero non cambia: lì la schermata di avvio occupa sempre tutto lo schermo.",
             ["SectionPlatformTimes"] = "Tempo fisso per piattaforma",
             ["PlatformTimersToggle"] = "Tempi separati per piattaforma",
             ["PlatformColumn"] = "Piattaforma",

@@ -13,10 +13,16 @@ namespace SplashAddonPlus
         public int Height { get; set; }
         public bool IsPrimary { get; set; }
 
+        /// <summary>The screen without the taskbar.</summary>
+        public int WorkLeft { get; set; }
+        public int WorkTop { get; set; }
+        public int WorkWidth { get; set; }
+        public int WorkHeight { get; set; }
+
         public override string ToString() => $"{Width}x{Height} at {Left},{Top}{(IsPrimary ? " (primary)" : string.Empty)}";
     }
 
-    /// <summary>Read-only monitor information (the splash itself is never moved).</summary>
+    /// <summary>Read-only monitor information (no monitor is ever chosen: the splash opens where Windows puts it).</summary>
     internal static class MonitorHelper
     {
         public static MonitorArea Primary()
@@ -69,7 +75,11 @@ namespace SplashAddonPlus
                 Top = info.rcMonitor.Top,
                 Width = info.rcMonitor.Right - info.rcMonitor.Left,
                 Height = info.rcMonitor.Bottom - info.rcMonitor.Top,
-                IsPrimary = (info.dwFlags & NativeMethods.MONITORINFOF_PRIMARY) != 0
+                IsPrimary = (info.dwFlags & NativeMethods.MONITORINFOF_PRIMARY) != 0,
+                WorkLeft = info.rcWork.Left,
+                WorkTop = info.rcWork.Top,
+                WorkWidth = info.rcWork.Right - info.rcWork.Left,
+                WorkHeight = info.rcWork.Bottom - info.rcWork.Top
             };
         }
 

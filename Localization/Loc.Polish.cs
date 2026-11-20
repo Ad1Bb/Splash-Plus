@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Nieznana gra ({0})",
 
             ["SectionAdvanced"] = "Zaawansowane",
+
+            ["DesktopSplashSize"] = "Rozmiar ekranu powitalnego w trybie pulpitu",
+
+            ["SizeFullScreen"] = "Pełny ekran",
+
+            ["SizeLarge"] = "Duże okno (75% ekranu)",
+
+            ["SizeSmall"] = "Małe okno (50% ekranu)",
+
+            ["DesktopSplashSizeHint"] = "Dotyczy tylko trybu pulpitu. Tryb pełnoekranowy się nie zmienia: tam ekran powitalny zawsze zajmuje cały ekran.",
             ["SectionPlatformTimes"] = "Stały czas dla platform",
             ["PlatformTimersToggle"] = "Osobne czasy dla platform",
             ["PlatformColumn"] = "Platforma",

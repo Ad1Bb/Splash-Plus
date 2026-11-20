@@ -78,6 +78,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Jogo desconhecido ({0})",
 
             ["SectionAdvanced"] = "Avançado",
+
+            ["DesktopSplashSize"] = "Tamanho da tela de abertura no modo Desktop",
+
+            ["SizeFullScreen"] = "Tela cheia",
+
+            ["SizeLarge"] = "Janela grande (75% da tela)",
+
+            ["SizeSmall"] = "Janela pequena (50% da tela)",
+
+            ["DesktopSplashSizeHint"] = "Somente para o modo Desktop. O modo Tela cheia não muda: nele a tela de abertura sempre ocupa a tela inteira.",
             ["SectionPlatformTimes"] = "Tempo fixo por plataforma",
             ["PlatformTimersToggle"] = "Tempos separados por plataforma",
             ["PlatformColumn"] = "Plataforma",

@@ -1,7 +1,7 @@
 Id: SplashAddonPlus_Ad1Bb
 Name: Splash Plus
 Author: Ad1Bb
-Version: 2.0
+Version: 2.1
 Module: SplashAddonPlus.dll
 Type: GenericPlugin
 EntryPoint: SplashAddonPlus.SplashAddonPlugin

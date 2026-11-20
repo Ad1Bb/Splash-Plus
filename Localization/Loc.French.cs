@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Jeu inconnu ({0})",
 
             ["SectionAdvanced"] = "Avancé",
+
+            ["DesktopSplashSize"] = "Taille de l'écran de démarrage en mode Bureau",
+
+            ["SizeFullScreen"] = "Plein écran",
+
+            ["SizeLarge"] = "Grande fenêtre (75 % de l'écran)",
+
+            ["SizeSmall"] = "Petite fenêtre (50 % de l'écran)",
+
+            ["DesktopSplashSizeHint"] = "Uniquement pour le mode Bureau. Le mode Plein écran n'est pas concerné : l'écran de démarrage y occupe toujours tout l'écran.",
             ["SectionPlatformTimes"] = "Durée fixe par plateforme",
             ["PlatformTimersToggle"] = "Durées distinctes par plateforme",
             ["PlatformColumn"] = "Plateforme",

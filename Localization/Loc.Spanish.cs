@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Juego desconocido ({0})",
 
             ["SectionAdvanced"] = "Avanzado",
+
+            ["DesktopSplashSize"] = "Tamaño de la pantalla de inicio en el modo Escritorio",
+
+            ["SizeFullScreen"] = "Pantalla completa",
+
+            ["SizeLarge"] = "Ventana grande (75% de la pantalla)",
+
+            ["SizeSmall"] = "Ventana pequeña (50% de la pantalla)",
+
+            ["DesktopSplashSizeHint"] = "Solo para el modo Escritorio. El modo Pantalla completa no cambia: allí la pantalla de inicio siempre ocupa toda la pantalla.",
             ["SectionPlatformTimes"] = "Tiempo fijo por plataforma",
             ["PlatformTimersToggle"] = "Tiempos distintos por plataforma",
             ["PlatformColumn"] = "Plataforma",

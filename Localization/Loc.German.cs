@@ -77,6 +77,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "Unbekanntes Spiel ({0})",
 
             ["SectionAdvanced"] = "Erweitert",
+
+            ["DesktopSplashSize"] = "Größe des Splash-Screens im Desktop-Modus",
+
+            ["SizeFullScreen"] = "Vollbild",
+
+            ["SizeLarge"] = "Großes Fenster (75% des Bildschirms)",
+
+            ["SizeSmall"] = "Kleines Fenster (50% des Bildschirms)",
+
+            ["DesktopSplashSizeHint"] = "Nur für den Desktop-Modus. Der Vollbildmodus bleibt unverändert: Dort füllt der Splash-Screen immer den ganzen Bildschirm.",
             ["SectionPlatformTimes"] = "Feste Zeit pro Plattform",
             ["PlatformTimersToggle"] = "Eigene Zeiten pro Plattform",
             ["PlatformColumn"] = "Plattform",

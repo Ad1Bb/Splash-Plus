@@ -126,6 +126,15 @@ namespace SplashAddonPlus
             // ---------- Advanced (collapsed) ----------
             var advanced = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
 
+            // Desktop mode only; the hint says plainly that Fullscreen mode is not affected.
+            advanced.Children.Add(Choice(Loc.DesktopSplashSize, "DesktopSplashSize",
+                Option(DesktopSplashSize.FullScreen, Loc.SizeFullScreen),
+                Option(DesktopSplashSize.Large, Loc.SizeLarge),
+                Option(DesktopSplashSize.Small, Loc.SizeSmall)));
+            TextBlock sizeHint = Hint(Loc.DesktopSplashSizeHint);
+            sizeHint.Margin = new Thickness(0, -5, 0, 10);
+            advanced.Children.Add(sizeHint);
+
             advanced.Children.Add(Label(Loc.SectionAutoDetect));
             advanced.Children.Add(NumberField(Loc.MaximumWait, "MaximumWaitSeconds", Loc.MaximumWaitHint));
             var detection = new StackPanel();

@@ -78,6 +78,16 @@ namespace SplashAddonPlus
             ["UnknownGame"] = "未知游戏（{0}）",
 
             ["SectionAdvanced"] = "高级",
+
+            ["DesktopSplashSize"] = "桌面模式下的启动画面大小",
+
+            ["SizeFullScreen"] = "全屏",
+
+            ["SizeLarge"] = "大窗口（屏幕的 75%）",
+
+            ["SizeSmall"] = "小窗口（屏幕的 50%）",
+
+            ["DesktopSplashSizeHint"] = "仅适用于桌面模式。全屏模式不受影响：在全屏模式下启动画面始终占满整个屏幕。",
             ["SectionPlatformTimes"] = "按平台设置固定时间",
             ["PlatformTimersToggle"] = "为各平台单独设置时间",
             ["PlatformColumn"] = "平台",

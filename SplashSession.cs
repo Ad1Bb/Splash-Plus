@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -38,6 +39,9 @@ namespace SplashAddonPlus
         public SplashAppearance Appearance { get; set; }
         public SplashImageSources Images { get; set; }
         public SplashStyle Style { get; set; }
+
+        /// <summary>Share of the screen the splash covers: 1 fills it (always in Fullscreen mode), less is a centered window.</summary>
+        public double WindowFraction { get; set; } = 1.0;
 
         /// <summary>Game details shown by the Cinema and Showcase styles.</summary>
         public SplashGameInfo GameInfo { get; set; }
@@ -90,7 +94,7 @@ namespace SplashAddonPlus
             GameName = game.Name;
             _options = options;
             _scene = CreateScene(options);
-            _window = CreateCoverWindow(_scene.Root);
+            _window = CreateCoverWindow(_scene.Root, options.WindowFraction);
             _window.Title = "SplashAddonPlusSplashScreen";
         }
 
@@ -200,6 +204,12 @@ namespace SplashAddonPlus
             try
             {
                 _window.Show();
+                if (_options.WindowFraction < 1)
+                {
+                    // Again after Show, in case WPF applied its own initial size; the window is still fully transparent.
+                    PlaceWindow(new WindowInteropHelper(_window).Handle, _options.WindowFraction);
+                }
+
                 _window.Activate();
             }
             catch (Exception ex)
@@ -208,10 +218,13 @@ namespace SplashAddonPlus
                 return;
             }
 
-            // Only read: the size of the screen the splash opened on, so images are decoded at that resolution.
+            // Only read: the size of the screen the splash opened on, so images are decoded at that resolution (or at
+            // the window's size, when the splash is a smaller window).
             _monitor = MonitorHelper.FromWindow(new WindowInteropHelper(_window).Handle) ?? MonitorHelper.Primary();
-            Log(() => $"Splash for \"{GameName}\" on a {_monitor?.ToString() ?? "unknown"} screen; game folder: {_options.GameFolder ?? "not used"}.");
-            _scene.LoadImagesAsync(_options.Images, _monitor);
+            Log(() => $"Splash for \"{GameName}\" on a {_monitor?.ToString() ?? "unknown"} screen" +
+                      $"{(_options.WindowFraction < 1 ? $", as a window of {_options.WindowFraction:P0}" : string.Empty)}; " +
+                      $"game folder: {_options.GameFolder ?? "not used"}.");
+            _scene.LoadImagesAsync(_options.Images, ScaledForWindow(_monitor, _options.WindowFraction));
 
             StartGamepad();
 
@@ -444,13 +457,17 @@ namespace SplashAddonPlus
             _timers.Clear();
         }
 
-        /// <summary>Borderless, maximized, topmost black window.</summary>
-        private static Window CreateCoverWindow(UIElement content)
+        /// <summary>
+        /// Borderless, topmost black window: maximized, or for a <paramref name="fraction"/> below 1 a window of that
+        /// share of the screen, centered on the screen Windows opens it on, with rounded corners (Windows 11).
+        /// </summary>
+        private static Window CreateCoverWindow(UIElement content, double fraction)
         {
-            return new Window
+            bool windowed = fraction < 1;
+            var window = new Window
             {
                 WindowStyle = WindowStyle.None,
-                WindowState = WindowState.Maximized,
+                WindowState = windowed ? WindowState.Normal : WindowState.Maximized,
                 Topmost = true,
                 Background = Brushes.Black,
                 ResizeMode = ResizeMode.NoResize,
@@ -458,6 +475,70 @@ namespace SplashAddonPlus
                 Opacity = 0.0,
                 Content = content
             };
+
+            if (windowed)
+            {
+                // Placed in screen pixels once the window exists but before it is shown, so it never flashes elsewhere.
+                window.SourceInitialized += (s, e) => PlaceWindow(new WindowInteropHelper(window).Handle, fraction);
+            }
+
+            return window;
+        }
+
+        private static void PlaceWindow(IntPtr hWnd, double fraction)
+        {
+            try
+            {
+                MonitorArea monitor = MonitorHelper.FromWindow(hWnd) ?? MonitorHelper.Primary();
+                if (monitor == null || monitor.Width <= 0 || monitor.Height <= 0)
+                {
+                    return;
+                }
+
+                int[] r = SplashWindowPlacement.Compute(monitor.Width, monitor.Height,
+                    monitor.WorkLeft, monitor.WorkTop, monitor.WorkWidth, monitor.WorkHeight, fraction);
+                NativeMethods.SetWindowPos(hWnd, NativeMethods.HWND_TOPMOST, r[0], r[1], r[2], r[3], NativeMethods.SWP_NOACTIVATE);
+                int round = NativeMethods.DWMWCP_ROUND;
+                NativeMethods.DwmSetWindowAttribute(hWnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+            }
+            catch (Exception ex)
+            {
+                // Rounded corners need Windows 11; the window itself still works without them.
+                Logger.Warn(ex, "Could not place the splash window.");
+            }
+        }
+
+        /// <summary>The monitor size shrunk to the window's, so a smaller splash decodes smaller images.</summary>
+        private static MonitorArea ScaledForWindow(MonitorArea monitor, double fraction)
+        {
+            if (monitor == null || fraction >= 1)
+            {
+                return monitor;
+            }
+
+            return new MonitorArea
+            {
+                Handle = monitor.Handle,
+                Left = monitor.Left,
+                Top = monitor.Top,
+                Width = (int)Math.Round(monitor.Width * fraction),
+                Height = (int)Math.Round(monitor.Height * fraction),
+                IsPrimary = monitor.IsPrimary
+            };
+        }
+
+        private static class NativeMethods
+        {
+            public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+            public const int DWMWCP_ROUND = 2;
+            public const uint SWP_NOACTIVATE = 0x10;
+            public static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+
+            [DllImport("user32.dll")]
+            public static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
+
+            [DllImport("dwmapi.dll")]
+            public static extern int DwmSetWindowAttribute(IntPtr hWnd, int attribute, ref int value, int size);
         }
     }
 }

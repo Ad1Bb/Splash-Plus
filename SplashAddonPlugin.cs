@@ -296,6 +296,9 @@ namespace SplashAddonPlus
                 },
                 Images = SplashImageSources.ForGame(game),
                 Style = _settings.Style,
+                WindowFraction = PlayniteApi.ApplicationInfo.Mode == ApplicationMode.Desktop
+                    ? SplashWindowPlacement.Fraction(_settings.DesktopSplashSize)
+                    : 1.0,
                 GameInfo = SplashGameInfo.FromGame(game, platform),
                 DiagnosticLogging = _settings.EnableDiagnosticLogging
             });

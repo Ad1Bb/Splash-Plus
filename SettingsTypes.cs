@@ -53,6 +53,56 @@ namespace SplashAddonPlus
         FixedTime
     }
 
+    /// <summary>Size of the splash screen in Playnite's Desktop mode (Fullscreen mode always uses the whole screen).</summary>
+    public enum DesktopSplashSize
+    {
+        FullScreen,
+
+        /// <summary>A window 75% of the screen's width and height, centered.</summary>
+        Large,
+
+        /// <summary>A window 50% of the screen's width and height, centered.</summary>
+        Small
+    }
+
+    /// <summary>Where a splash window that does not fill the screen goes, in screen pixels.</summary>
+    internal static class SplashWindowPlacement
+    {
+        /// <summary>Share of the screen's width and height (1 = the whole screen).</summary>
+        public static double Fraction(DesktopSplashSize size)
+        {
+            switch (size)
+            {
+                case DesktopSplashSize.Large: return 0.75;
+                case DesktopSplashSize.Small: return 0.5;
+                default: return 1.0;
+            }
+        }
+
+        /// <summary>
+        /// A window with the monitor's proportions at <paramref name="fraction"/> of its size, centered in the work area
+        /// (the screen without the taskbar) and never larger than it. Returns x, y, width, height.
+        /// </summary>
+        public static int[] Compute(int monitorWidth, int monitorHeight, int workLeft, int workTop, int workWidth, int workHeight, double fraction)
+        {
+            double scale = Math.Min(fraction, Math.Min(workWidth / (double)monitorWidth, workHeight / (double)monitorHeight));
+            int width = (int)Math.Round(monitorWidth * scale);
+            int height = (int)Math.Round(monitorHeight * scale);
+            return new[] { workLeft + (workWidth - width) / 2, workTop + (workHeight - height) / 2, width, height };
+        }
+    }
+
+    /// <summary>Saves an enum by name; a name it does not know reads as the enum's first value.</summary>
+    internal sealed class SafeEnumConverter<T> : StringEnumConverter where T : struct
+    {
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            return reader.TokenType == JsonToken.String && Enum.TryParse((string)reader.Value, true, out T value)
+                && Enum.IsDefined(typeof(T), value)
+                ? value
+                : default(T);
+        }
+    }
     /// <summary>The appearance options (logo position and size, dimming, vignette, zoom) are used only by Custom.</summary>
     internal static class StyleOptions
     {
