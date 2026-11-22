@@ -75,6 +75,8 @@ namespace SplashAddonPlus
             ["GameSplashOff"] = "Выкл.",
             ["NoGames"] = "Пока нет.",
             ["UnknownGame"] = "Неизвестная игра ({0})",
+            ["UpdateAvailable"] = "Доступна версия Splash Plus {0}. Нажмите, чтобы открыть страницу загрузки.",
+            ["UpdateAvailableFullscreen"] = "На GitHub доступна версия Splash Plus {0}.",
 
             ["SectionAdvanced"] = "Дополнительно",
 
@@ -85,6 +87,8 @@ namespace SplashAddonPlus
             ["SizeLarge"] = "Большое окно (75% экрана)",
 
             ["SizeSmall"] = "Маленькое окно (50% экрана)",
+
+            ["SizePlayniteWindow"] = "Как окно Playnite",
 
             ["DesktopSplashSizeHint"] = "Только для режима рабочего стола. Полноэкранный режим не меняется: там заставка всегда занимает весь экран.",
             ["SectionPlatformTimes"] = "Заданное время для платформ",

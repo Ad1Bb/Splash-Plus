@@ -37,6 +37,50 @@ namespace SplashAddonPlus
             }
         }
 
+        /// <summary>
+        /// The visible rectangle of a shown, not minimized window (x, y, width, height), limited to its monitor, or null.
+        /// Windows 10/11 frames have invisible resize borders; the rectangle Windows draws (DWM) is used when it differs
+        /// from the window rectangle only by such a border, so the splash lines up with what is on screen.
+        /// </summary>
+        public static int[] VisibleWindowBounds(IntPtr hWnd)
+        {
+            try
+            {
+                if (hWnd == IntPtr.Zero || !NativeMethods.IsWindowVisible(hWnd) || NativeMethods.IsIconic(hWnd)
+                    || !NativeMethods.GetWindowRect(hWnd, out NativeMethods.RECT r))
+                {
+                    return null;
+                }
+
+                if (NativeMethods.DwmGetWindowAttribute(hWnd, NativeMethods.DWMWA_EXTENDED_FRAME_BOUNDS, out NativeMethods.RECT drawn,
+                        Marshal.SizeOf(typeof(NativeMethods.RECT))) == 0
+                    && IsBorder(drawn.Left - r.Left) && IsBorder(drawn.Top - r.Top) && IsBorder(r.Right - drawn.Right) && IsBorder(r.Bottom - drawn.Bottom))
+                {
+                    r = drawn;
+                }
+
+                MonitorArea monitor = FromWindow(hWnd);
+                if (monitor != null)
+                {
+                    r.Left = Math.Max(r.Left, monitor.Left);
+                    r.Top = Math.Max(r.Top, monitor.Top);
+                    r.Right = Math.Min(r.Right, monitor.Left + monitor.Width);
+                    r.Bottom = Math.Min(r.Bottom, monitor.Top + monitor.Height);
+                }
+
+                return r.Right - r.Left >= 200 && r.Bottom - r.Top >= 150
+                    ? new[] { r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top }
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        // An invisible resize border is a few pixels; a larger gap means the two rectangles use different scales.
+        private static bool IsBorder(int gap) => gap >= 0 && gap <= 16;
+
         /// <summary>Monitor showing most of the window (for a minimized window: where it was before).</summary>
         public static MonitorArea FromWindow(IntPtr hWnd)
         {
@@ -114,8 +158,25 @@ namespace SplashAddonPlus
                 public uint dwFlags;
             }
 
+            public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
             [DllImport("user32.dll")]
             public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsWindowVisible(IntPtr hWnd);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool IsIconic(IntPtr hWnd);
+
+            [DllImport("user32.dll")]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+            [DllImport("dwmapi.dll")]
+            public static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out RECT value, int size);
 
             [DllImport("user32.dll")]
             public static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint dwFlags);

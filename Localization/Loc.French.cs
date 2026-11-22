@@ -75,6 +75,8 @@ namespace SplashAddonPlus
             ["GameSplashOff"] = "Désactivé",
             ["NoGames"] = "Aucun pour l'instant.",
             ["UnknownGame"] = "Jeu inconnu ({0})",
+            ["UpdateAvailable"] = "Splash Plus {0} est disponible. Cliquez pour ouvrir la page de téléchargement.",
+            ["UpdateAvailableFullscreen"] = "Splash Plus {0} est disponible sur GitHub.",
 
             ["SectionAdvanced"] = "Avancé",
 
@@ -85,6 +87,8 @@ namespace SplashAddonPlus
             ["SizeLarge"] = "Grande fenêtre (75 % de l'écran)",
 
             ["SizeSmall"] = "Petite fenêtre (50 % de l'écran)",
+
+            ["SizePlayniteWindow"] = "Comme la fenêtre de Playnite",
 
             ["DesktopSplashSizeHint"] = "Uniquement pour le mode Bureau. Le mode Plein écran n'est pas concerné : l'écran de démarrage y occupe toujours tout l'écran.",
             ["SectionPlatformTimes"] = "Durée fixe par plateforme",

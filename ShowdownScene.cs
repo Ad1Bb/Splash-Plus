@@ -43,6 +43,12 @@ namespace SplashAddonPlus
         private bool _linesRunning;
 
         private readonly Canvas _group = new Canvas { Width = GroupWidth, Height = StageHeight };
+
+        // Below 1:1 of the design (a narrow window) the title, cover and band shrink together; 1 on wide screens.
+        private readonly ScaleTransform _groupScale = new ScaleTransform(1, 1);
+
+        /// <summary>Width the title and the cover take up around the center (text from 140 u, cover to 1580 u).</summary>
+        private const double ContentWidth = 2 * (CenterX - TextLeft);
         private readonly TranslateTransform _shake = new TranslateTransform();
 
         private readonly Grid _coverFrame;
@@ -112,7 +118,7 @@ namespace SplashAddonPlus
 
             // 4b. Content on a 1920 × 1080 frame around the screen's center, tilted like the band
             _group.RenderTransformOrigin = new Point(0.5, 0.5);
-            _group.RenderTransform = new RotateTransform(Angle);
+            _group.RenderTransform = new TransformGroup { Children = { _groupScale, new RotateTransform(Angle) } };
             shaking.Children.Add(new Canvas { Children = { _group } });
 
             if (cover)
@@ -236,6 +242,15 @@ namespace SplashAddonPlus
             _band.Width = 1.2 * width;
             Canvas.SetLeft(_band, -0.1 * width);
             Canvas.SetLeft(_group, width / 2 - CenterX);
+
+            double fit = FitWidth(width, ContentWidth, 40);
+            if (fit < 1)
+            {
+                _groupScale.ScaleX = fit;
+                _groupScale.ScaleY = fit;
+                _band.Height = BandHeight * fit;
+                Canvas.SetTop(_band, CenterY - _band.Height / 2);
+            }
         }
 
         protected override void Start()

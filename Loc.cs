@@ -173,12 +173,15 @@ namespace SplashAddonPlus
         public static string GameSplashOff => T();
         public static string NoGames => T();
         public static string UnknownGame(string id) => string.Format(T(), id);
+        public static string UpdateAvailable(string version) => string.Format(T(), version);
+        public static string UpdateAvailableFullscreen(string version) => string.Format(T(), version);
 
         public static string SectionAdvanced => T();
         public static string DesktopSplashSize => T();
         public static string SizeFullScreen => T();
         public static string SizeLarge => T();
         public static string SizeSmall => T();
+        public static string SizePlayniteWindow => T();
         public static string DesktopSplashSizeHint => T();
         public static string SectionPlatformTimes => T();
         public static string PlatformTimersToggle => T();
@@ -291,6 +294,8 @@ namespace SplashAddonPlus
             ["GameSplashOff"] = "Off",
             ["NoGames"] = "None yet.",
             ["UnknownGame"] = "Unknown game ({0})",
+            ["UpdateAvailable"] = "Splash Plus {0} is available. Click to open the download page.",
+            ["UpdateAvailableFullscreen"] = "Splash Plus {0} is available on GitHub.",
 
             // Settings: advanced
             ["SectionAdvanced"] = "Advanced",
@@ -298,6 +303,7 @@ namespace SplashAddonPlus
             ["SizeFullScreen"] = "Full screen",
             ["SizeLarge"] = "Large window (75% of the screen)",
             ["SizeSmall"] = "Small window (50% of the screen)",
+            ["SizePlayniteWindow"] = "Same as the Playnite window",
             ["DesktopSplashSizeHint"] = "Only for Desktop mode. Fullscreen mode is not affected: there the splash screen always fills the screen.",
             ["SectionPlatformTimes"] = "Fixed time per platform",
             ["PlatformTimersToggle"] = "Separate times per platform",

@@ -91,8 +91,17 @@ namespace SplashAddonPlus
 
         protected override void OnStageWidth(double width)
         {
-            double right = HasCover ? FrameRight + CoverWidth + ColumnGap : ColumnRight;
-            _column.MaxWidth = Math.Max(1, SafeWidth - ColumnLeft - right);
+            // Room for the cover and at least 640 u of text; below that (a narrow window) the cover side shrinks.
+            double fit = HasCover ? FitWidth(SafeWidth, ColumnLeft + 640 + ColumnGap + CoverWidth + FrameRight, 0) : 1;
+            double right = HasCover ? fit * (FrameRight + CoverWidth + ColumnGap) : ColumnRight;
+            if (fit < 1)
+            {
+                _frame.LayoutTransform = new ScaleTransform(fit, fit);
+                _float.Margin = new Thickness(0, 0, fit * FrameRight, FrameBottom);
+                _column.Margin = new Thickness(fit * ColumnLeft, 0, 0, ColumnBottom);
+            }
+
+            _column.MaxWidth = Math.Max(1, SafeWidth - (fit < 1 ? fit * ColumnLeft : ColumnLeft) - right);
             FitTitle(_column.MaxWidth, 76, 52, centered: true);
         }
 

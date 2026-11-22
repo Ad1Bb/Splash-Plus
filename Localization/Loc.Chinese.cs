@@ -76,6 +76,8 @@ namespace SplashAddonPlus
             ["GameSplashOff"] = "关闭",
             ["NoGames"] = "暂无。",
             ["UnknownGame"] = "未知游戏（{0}）",
+            ["UpdateAvailable"] = "Splash Plus {0} 已发布。点击打开下载页面。",
+            ["UpdateAvailableFullscreen"] = "Splash Plus {0} 已在 GitHub 上发布。",
 
             ["SectionAdvanced"] = "高级",
 
@@ -86,6 +88,8 @@ namespace SplashAddonPlus
             ["SizeLarge"] = "大窗口（屏幕的 75%）",
 
             ["SizeSmall"] = "小窗口（屏幕的 50%）",
+
+            ["SizePlayniteWindow"] = "与 Playnite 窗口相同",
 
             ["DesktopSplashSizeHint"] = "仅适用于桌面模式。全屏模式不受影响：在全屏模式下启动画面始终占满整个屏幕。",
             ["SectionPlatformTimes"] = "按平台设置固定时间",

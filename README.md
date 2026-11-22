@@ -21,12 +21,13 @@ Animated splash screens for [Playnite](https://playnite.link/). Pick a game and 
 - **Per-game settings.** Right-click games in your library and open **Splash Plus** to turn the splash screen off for them, give them a fixed display time, or preview it.
 - **Fixed time when you need it.** A fixed display time for all games, or a separate one for each platform.
 - **Desktop and Fullscreen mode.** The splash screen works in both modes, and so do the settings: every option can be changed right in Fullscreen mode, without going back to Desktop mode.
-- **Full screen or a window in Desktop mode.** In Desktop mode the splash screen can also be a centered window with rounded corners, at 75% or 50% of the screen, so the desktop stays in view. Fullscreen mode always uses the whole screen.
+- **Full screen or a window in Desktop mode.** In Desktop mode the splash screen can also be a centered window with rounded corners, at 75% or 50% of the screen, so the desktop stays in view, or cover exactly the Playnite window, whatever its size and shape. The styles fit narrow windows too. Fullscreen mode always uses the whole screen.
+- **Update notice.** When a new version is out, Splash Plus tells you with a Playnite notification. In Desktop mode a click opens the download page.
 - **9 languages.** English, German, French, Spanish, Italian, Portuguese (Brazil), Polish, Russian and Chinese (Simplified). Splash Plus follows Playnite's language setting.
 
 ## Lightweight
 
-- **Nothing runs in the background.** Between games there are no timers, threads or polling. Splash Plus only waits for Playnite to report that a game is starting. The whole add-on is a single ~320 KB DLL.
+- **Nothing runs in the background.** Between games there are no timers, threads or polling. The only other work is one quick look for a new version when Playnite starts, at most once a day. Splash Plus only waits for Playnite to report that a game is starting. The whole add-on is a single ~350 KB DLL.
 - **Smooth animations.** Images are decoded off the UI thread, at screen resolution only. Every blur, shadow and glow is rendered once, so the animations only move, scale and fade finished images, composited on the GPU.
 - **Tiny checks while it waits.** Looking for the game's window takes a fraction of a millisecond, four times a second. The gamepad is checked through XInput.
 - **Gone without a trace.** When the splash screen closes, every timer and animation stops and the images are released. If the game is never detected, a safety limit (60 seconds by default) closes it anyway.
@@ -92,7 +93,7 @@ Every style is chosen in the add-on settings, each with a **Preview** button tha
 - **Close the splash screen:** when the game appears (recommended) or after a fixed time.
 - **Games with their own settings:** games you turned off or gave a fixed time from the library's right-click menu, listed by name.
 - **Advanced:**
-  - the splash screen size in Desktop mode (full screen, or a window at 75% or 50% of the screen);
+  - the splash screen size in Desktop mode (full screen, a window at 75% or 50% of the screen, or the same as the Playnite window);
   - the maximum waiting time;
   - the minimum display time and the delay after the game is detected;
   - detection of windowed games;
@@ -143,7 +144,7 @@ The tests cover everything that does not need Windows: settings and their migrat
 dotnet run --project Tests -c Release
 ```
 
-GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `2.1`) publishes a release with the package attached.
+GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `2.2`) publishes a release with the package attached.
 
 ---
 

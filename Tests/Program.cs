@@ -323,6 +323,8 @@ place = SplashWindowPlacement.Compute(2560, 1440, -2560, 0, 2560, 1400, 0.5);
 Check(place.SequenceEqual(new[] { -1920, 340, 1280, 720 }), "50% window on a second monitor left of the primary: " + string.Join(",", place));
 place = SplashWindowPlacement.Compute(1920, 1080, 0, 0, 1920, 700, 0.75);
 Check(place[3] <= 700 && place[2] == (int)Math.Round(1920 * 700 / 1080.0) && place[1] == 0, "never taller than the work area, proportions kept: " + string.Join(",", place));
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>(JsonConvert.SerializeObject(new SplashAddonSettings { DesktopSplashSize = DesktopSplashSize.PlayniteWindow })).DesktopSplashSize
+      == DesktopSplashSize.PlayniteWindow && SplashWindowPlacement.Fraction(DesktopSplashSize.PlayniteWindow) == 1, "Playnite-window size saved; its fallback is the whole screen");
 Check(Math.Abs(SplashText.CoverAspect(null) - 2.0 / 3) < 1e-9 && SplashText.CoverAspect(0.4) == 0.55 && SplashText.CoverAspect(1.78) == 1.0
       && SplashText.CoverAspect(0.75) == 0.75 && Math.Abs(SplashText.CoverAspect(double.NaN) - 2.0 / 3) < 1e-9, "cover proportions limited to 0.55-1.0, 2:3 when unknown");
 
@@ -406,5 +408,74 @@ Check(Loc.SectionAppearance == "Darstellung" && Loc.StyleCinema == "Cinema", "Ge
 Loc.SetLanguage("en_US");
 Check(Loc.MenuPreview == "Show splash screen preview", "back to English");
 
+// Update check: tags and yaml versions compare as versions; only a newer release is announced.
+Check(UpdateCheck.Parse("2.1") == new Version(2, 1, 0) && UpdateCheck.Parse("v2.10") == new Version(2, 10, 0)
+      && UpdateCheck.Parse("2.1.3") == new Version(2, 1, 3) && UpdateCheck.Parse("beta") == null && UpdateCheck.Parse(null) == null
+      && UpdateCheck.Parse("99999999999") == null && UpdateCheck.Parse("2.1-rc1") == null, "update: versions parse, odd ones are ignored");
+Check(UpdateCheck.FromManifest("Id: X\r\nVersion: 2.1\r\nModule: a.dll") == new Version(2, 1, 0)
+      && UpdateCheck.FromManifest("Version: '2.0'") == new Version(2, 0, 0) && UpdateCheck.FromManifest("Name: X") == null
+      && UpdateCheck.FromManifest("Version:\r\n") == null, "update: version from extension.yaml");
+Check(UpdateCheck.NewerTag("2.2", new Version(2, 1, 0)) == "2.2" && UpdateCheck.NewerTag("v2.10", new Version(2, 9, 0)) == "2.10"
+      && UpdateCheck.NewerTag("2.1", new Version(2, 1, 0)) == null && UpdateCheck.NewerTag("2.0", new Version(2, 1, 0)) == null
+      && UpdateCheck.NewerTag("nightly", new Version(2, 1, 0)) == null && UpdateCheck.NewerTag(null, new Version(2, 1, 0)) == null,
+      "update: only a newer release is announced");
+Check(UpdateCheck.SafePage("https://github.com/Ad1Bb/Splash-Plus/releases/tag/2.2") == "https://github.com/Ad1Bb/Splash-Plus/releases/tag/2.2"
+      && UpdateCheck.SafePage("https://evil.example/") == UpdateCheck.ReleasesPage && UpdateCheck.SafePage(null) == UpdateCheck.ReleasesPage,
+      "update: only this add-on's release pages are opened");
+var nowUtc = new DateTime(2026, 11, 22, 12, 0, 0, DateTimeKind.Utc);
+Check(UpdateCheck.IsDue(null, nowUtc) && UpdateCheck.IsDue("garbage", nowUtc) && UpdateCheck.IsDue(nowUtc.AddHours(-21).ToString("o"), nowUtc)
+      && !UpdateCheck.IsDue(nowUtc.AddHours(-2).ToString("o"), nowUtc) && UpdateCheck.IsDue(nowUtc.AddDays(3).ToString("o"), nowUtc),
+      "update: at most one check a day; a damaged or future time means due");
+Check(Loc.UpdateAvailable("2.2").Contains("2.2") && Loc.UpdateAvailableFullscreen("2.2").Contains("2.2"), "update: notification texts");
+
+// The whole check against a local stand-in for GitHub: every failure is only logged, never thrown.
+string Serve(string status, string body)
+{
+    var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+    listener.Start();
+    int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+    System.Threading.Tasks.Task.Run(() =>
+    {
+        using var client = listener.AcceptTcpClient();
+        using var stream = client.GetStream();
+        var request = new byte[8192];
+        stream.Read(request, 0, request.Length);
+        byte[] content = System.Text.Encoding.UTF8.GetBytes(body);
+        byte[] head = System.Text.Encoding.ASCII.GetBytes($"HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {content.Length}\r\nConnection: close\r\n\r\n");
+        stream.Write(head, 0, head.Length);
+        stream.Write(content, 0, content.Length);
+        listener.Stop();
+    });
+    return $"http://127.0.0.1:{port}/";
+}
+(string Tag, string Page, int Logs) RunCheck(string url, string state = null)
+{
+    string tag = null, page = null;
+    int logs = 0;
+    bool finished = UpdateCheck.Start(state, (t, p) => { tag = t; page = p; }, _ => logs++, url).Wait(30000);
+    if (!finished) logs = -1;
+    return (tag, page, logs);
+}
+var offline = RunCheck("http://127.0.0.1:1/");
+Check(offline.Tag == null && offline.Logs == 1, "update: no connection is only logged");
+var html = RunCheck(Serve("200 OK", "<html>Captive portal</html>"));
+Check(html.Tag == null && html.Logs == 1, "update: an HTML page instead of JSON is only logged");
+var limited = RunCheck(Serve("403 Forbidden", "{\"message\":\"API rate limit exceeded\"}"));
+Check(limited.Tag == null && limited.Logs == 1, "update: the rate limit is only logged");
+var huge = RunCheck(Serve("200 OK", "{\"tag_name\":\"" + new string('9', 2 * 1024 * 1024) + "\"}"));
+Check(huge.Tag == null && huge.Logs == 1, "update: an oversized answer is not read");
+var odd = RunCheck(Serve("200 OK", "[1,2,3]"));
+Check(odd.Tag == null && odd.Logs == 1, "update: an unexpected JSON shape is only logged");
+var newer = RunCheck(Serve("200 OK", "{\"tag_name\":\"99.0\",\"html_url\":\"https://evil.example/x\"}"));
+Check(newer.Tag == "99.0" && newer.Page == UpdateCheck.ReleasesPage && newer.Logs == 0, "update: a newer release is announced with a safe link");
+string stateFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "splashplus-update-test", "update-check.txt");
+if (System.IO.File.Exists(stateFile)) System.IO.File.Delete(stateFile);
+var same = RunCheck(Serve("200 OK", "{\"tag_name\":\"2.1\",\"html_url\":\"https://github.com/Ad1Bb/Splash-Plus/releases/tag/2.1\"}"), stateFile);
+Check(same.Tag == null && same.Logs == 0 && System.IO.File.Exists(stateFile), "update: the same version is not announced; the time is saved");
+var skipped = RunCheck("http://127.0.0.1:1/", stateFile);
+Check(skipped.Tag == null && skipped.Logs == 0, "update: no second request on the same day");
+System.IO.File.WriteAllText(stateFile, "damaged");
+var afterDamage = RunCheck(Serve("200 OK", "{\"tag_name\":\"2.1\"}"), stateFile);
+Check(afterDamage.Logs == 0 && UpdateCheck.IsDue(System.IO.File.ReadAllText(stateFile), DateTime.UtcNow) == false, "update: a damaged saved time is replaced");
 Console.WriteLine(failures == 0 ? "ALL PASSED" : $"{failures} FAILED");
 return failures;

@@ -70,9 +70,12 @@ namespace SplashAddonPlus
             area.Children.Add(_column);
         }
 
-        private static double FrameTop => (StageHeight - FrameHeight) / 2;
+        /// <summary>In a narrow window the cover and the gaps shrink by this much (1 on wide screens).</summary>
+        private double _fit = 1;
 
-        private double ColumnLeft => FrameLeft + CoverWidth + ColumnGap;
+        private double FrameTop => (StageHeight - _fit * FrameHeight) / 2;
+
+        private double ColumnLeft => _fit * (FrameLeft + CoverWidth + ColumnGap);
 
         protected override double CoverHeight => FrameHeight;
 
@@ -82,6 +85,19 @@ namespace SplashAddonPlus
 
         protected override void OnStageWidth(double width)
         {
+            if (HasCover)
+            {
+                // Cover, gaps and the full column, with 60 u to spare on either side; below that the cover side shrinks.
+                _fit = FitWidth(SafeWidth, FrameLeft + CoverWidth + ColumnGap + ColumnWidth + 120, 0);
+                if (_fit < 1)
+                {
+                    _frame.LayoutTransform = new ScaleTransform(_fit, _fit);
+                    _frame.Margin = new Thickness(_fit * FrameLeft, FrameTop, 0, 0);
+                    _column.Width = Math.Min(ColumnWidth, SafeWidth - ColumnLeft - 60);
+                    _column.Margin = new Thickness(ColumnLeft, 0, 0, 0);
+                }
+            }
+
             FitTitle(_column.Width, 68, 50, centered: true);
         }
 
@@ -105,10 +121,10 @@ namespace SplashAddonPlus
             Rect pane;
             if (HasCover)
             {
-                double left = SafeLeft + FrameLeft - GlassPadding;
+                double left = SafeLeft + _fit * FrameLeft - GlassPadding;
                 double right = column.Right + GlassPadding;
                 double top = Math.Min(FrameTop, column.Top) - GlassPadding;
-                double bottom = Math.Max(FrameTop + FrameHeight, column.Bottom) + GlassPadding;
+                double bottom = Math.Max(FrameTop + _fit * FrameHeight, column.Bottom) + GlassPadding;
                 pane = new Rect(left, top, right - left, bottom - top);
             }
             else

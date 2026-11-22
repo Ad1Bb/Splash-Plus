@@ -30,6 +30,11 @@ namespace SplashAddonPlus
 
         private readonly ScreenGlass _disc = new ScreenGlass(new SolidColorBrush(Color.FromArgb(89, 0, 0, 0)), 24, 60, 0.25);
         private readonly ScaleTransform _discScale = new ScaleTransform(0.8, 0.8, DiscSize / 2, DiscSize / 2);
+
+        // In a narrow window the disc, ring and text shrink together (1 on wide screens); the frost stays screen-aligned.
+        private readonly ScaleTransform _discFit = new ScaleTransform(1, 1, DiscSize / 2, DiscSize / 2);
+        private Canvas _ringHolder;
+        private Canvas _textHolder;
         private readonly Reflection _cap;
         private readonly Reflection _streaks;
         private readonly TranslateTransform _sheenShift;
@@ -86,10 +91,12 @@ namespace SplashAddonPlus
             };
             _light = new Grid { Opacity = 0, RenderTransform = _lightTurn, Children = { lightLine } };
             _ring = new Grid { Width = RingBox, Height = RingBox, RenderTransform = _ringTurn, Children = { _ringLine, _light } };
-            Stage.Children.Add(new Canvas { Children = { _ring } });
+            _ringHolder = new Canvas { Children = { _ring } };
+            Stage.Children.Add(_ringHolder);
 
             // 4. The disc of smoked glossy glass
             _disc.Motion.Children.Add(_discScale);
+            _disc.Motion.Children.Add(_discFit);
             _disc.Opacity = 0;
             var discShape = new EllipseGeometry(new Rect(0, 0, DiscSize, DiscSize));
             discShape.Freeze();
@@ -193,7 +200,8 @@ namespace SplashAddonPlus
             }
 
             _textBlock = new Grid { Width = TextWidth, Height = StageHeight, Children = { column } };
-            Stage.Children.Add(new Canvas { Children = { _textBlock } });
+            _textHolder = new Canvas { Children = { _textBlock } };
+            Stage.Children.Add(_textHolder);
         }
 
         /// <summary>A full circle of the ring's radius, starting at 12 o'clock and running clockwise.</summary>
@@ -211,12 +219,21 @@ namespace SplashAddonPlus
 
         protected override void OnStageWidth(double width)
         {
-            double centerX = width / 2 + DiscCenterX;
+            // The ring reaches 698 u left of the center, the text up to 780 u right of it.
+            double fit = FitWidth(width, 2 * 780, 40);
+            double centerX = width / 2 + DiscCenterX * fit;
             _disc.SetShape(new EllipseGeometry(new Rect(0, 0, DiscSize, DiscSize)), new Point(centerX - DiscSize / 2, StageHeight / 2 - DiscSize / 2));
             _disc.SetStageSize(width, StageHeight);
             Canvas.SetLeft(_ring, centerX - RingBox / 2);
             Canvas.SetTop(_ring, StageHeight / 2 - RingBox / 2);
-            Canvas.SetLeft(_textBlock, width / 2 + TextLeft);
+            Canvas.SetLeft(_textBlock, width / 2 + TextLeft * fit);
+            if (fit < 1)
+            {
+                _discFit.ScaleX = fit;
+                _discFit.ScaleY = fit;
+                _ringHolder.RenderTransform = new ScaleTransform(fit, fit, centerX, StageHeight / 2);
+                _textHolder.RenderTransform = new ScaleTransform(fit, fit, width / 2 + TextLeft * fit, StageHeight / 2);
+            }
         }
 
         protected override void Start()

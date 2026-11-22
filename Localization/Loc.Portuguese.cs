@@ -76,6 +76,8 @@ namespace SplashAddonPlus
             ["GameSplashOff"] = "Desativada",
             ["NoGames"] = "Nenhum ainda.",
             ["UnknownGame"] = "Jogo desconhecido ({0})",
+            ["UpdateAvailable"] = "O Splash Plus {0} está disponível. Clique para abrir a página de download.",
+            ["UpdateAvailableFullscreen"] = "O Splash Plus {0} está disponível no GitHub.",
 
             ["SectionAdvanced"] = "Avançado",
 
@@ -86,6 +88,8 @@ namespace SplashAddonPlus
             ["SizeLarge"] = "Janela grande (75% da tela)",
 
             ["SizeSmall"] = "Janela pequena (50% da tela)",
+
+            ["SizePlayniteWindow"] = "Igual à janela do Playnite",
 
             ["DesktopSplashSizeHint"] = "Somente para o modo Desktop. O modo Tela cheia não muda: nele a tela de abertura sempre ocupa a tela inteira.",
             ["SectionPlatformTimes"] = "Tempo fixo por plataforma",

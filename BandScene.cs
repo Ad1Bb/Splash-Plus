@@ -122,10 +122,24 @@ namespace SplashAddonPlus
             }
         }
 
-        private double TextWidth => HasCover ? SafeWidth - (CoverLeft + _coverWidth + TextGap) - TextRight : 0.76 * StageWidth;
+        /// <summary>In a narrow window the cover and the gaps around the text shrink by this much (1 on wide screens).</summary>
+        private double _fit = 1;
+
+        private double TextWidth => !HasCover ? 0.76 * StageWidth
+            : _fit < 1 ? SafeWidth - _fit * (CoverLeft + _coverWidth + TextGap + TextRight)
+            : SafeWidth - (CoverLeft + _coverWidth + TextGap) - TextRight;
 
         protected override void OnStageWidth(double width)
         {
+            // Room for the cover and at least 560 u of text; below that the cover side shrinks.
+            _fit = HasCover ? FitWidth(width, CoverLeft + _coverWidth + TextGap + 560 + TextRight, 0) : 1;
+            if (_coverFrame != null && _fit < 1)
+            {
+                _coverFrame.LayoutTransform = new ScaleTransform(_fit, _fit);
+                _coverFrame.Margin = new Thickness(_fit * CoverLeft, BandCenter - _fit * CoverHeight / 2, 0, 0);
+                _text.Margin = new Thickness(_fit * (CoverLeft + _coverWidth + TextGap), 0, _fit * TextRight, 0);
+            }
+
             _band.BorderThickness = new Thickness(0, OnePixel, 0, OnePixel);
             _glass.SetSize(width, BandHeight);
             _glass.AlignCopy(new Point(0, BandCenter - BandHeight / 2), width, StageHeight);

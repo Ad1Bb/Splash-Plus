@@ -90,6 +90,16 @@ namespace SplashAddonPlus
         /// <summary>Left edge of the safe area on the stage.</summary>
         protected double SafeLeft => (StageWidth - SafeWidth) / 2;
 
+        /// <summary>
+        /// How much a composition <paramref name="contentWidth"/> units wide has to shrink to fit a narrow stage (a
+        /// squarish Playnite window in Desktop mode) with <paramref name="margin"/> on each side: 1 whenever it fits,
+        /// so wide screens look exactly as designed.
+        /// </summary>
+        protected static double FitWidth(double stageWidth, double contentWidth, double margin = 60)
+        {
+            return double.IsNaN(stageWidth) ? 1 : Math.Min(1, (stageWidth - 2 * margin) / contentWidth);
+        }
+
         /// <summary>One screen pixel (DIP) in units, so hairlines never get thinner than a pixel.</summary>
         protected double OnePixel => _root.ActualHeight > 0 ? Math.Max(1, StageHeight / _root.ActualHeight) : 1;
 

@@ -130,7 +130,8 @@ namespace SplashAddonPlus
             advanced.Children.Add(Choice(Loc.DesktopSplashSize, "DesktopSplashSize",
                 Option(DesktopSplashSize.FullScreen, Loc.SizeFullScreen),
                 Option(DesktopSplashSize.Large, Loc.SizeLarge),
-                Option(DesktopSplashSize.Small, Loc.SizeSmall)));
+                Option(DesktopSplashSize.Small, Loc.SizeSmall),
+                Option(DesktopSplashSize.PlayniteWindow, Loc.SizePlayniteWindow)));
             TextBlock sizeHint = Hint(Loc.DesktopSplashSizeHint);
             sizeHint.Margin = new Thickness(0, -5, 0, 10);
             advanced.Children.Add(sizeHint);

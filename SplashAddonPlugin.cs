@@ -110,6 +110,59 @@ namespace SplashAddonPlus
             });
         }
 
+        public override void OnApplicationStarted(OnApplicationStartedEventArgs args)
+        {
+            base.OnApplicationStarted(args);
+            try
+            {
+                // In Fullscreen mode (often a TV and a gamepad) the notice only informs: opening a web browser there
+                // could leave someone without a mouse stuck outside Playnite.
+                bool fullscreen = PlayniteApi.ApplicationInfo.Mode == ApplicationMode.Fullscreen;
+                string stateFile = Path.Combine(GetPluginUserDataPath(), "update-check.txt");
+                UpdateCheck.Start(stateFile, (tag, page) => ShowUpdateNotice(tag, page, fullscreen), message => Logger.Info(message));
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not start the update check.");
+            }
+        }
+
+        /// <summary>The notice about a new release, added on the UI thread without waiting for it (never blocks the check).</summary>
+        private void ShowUpdateNotice(string tag, string page, bool fullscreen)
+        {
+            void Add()
+            {
+                try
+                {
+                    PlayniteApi.Notifications.Add(fullscreen
+                        ? new NotificationMessage("SplashPlus_Update", Loc.UpdateAvailableFullscreen(tag), NotificationType.Info)
+                        : new NotificationMessage("SplashPlus_Update", Loc.UpdateAvailable(tag), NotificationType.Info, () => OpenPage(page)));
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, "Could not show the update notice.");
+                }
+            }
+
+            System.Windows.Threading.Dispatcher dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.HasShutdownStarted)
+            {
+                dispatcher.BeginInvoke((Action)Add);
+            }
+        }
+
+        private static void OpenPage(string url)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(url);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not open " + url);
+            }
+        }
+
         public override void OnApplicationStopped(OnApplicationStoppedEventArgs args)
         {
             SaveSettings();
@@ -276,6 +329,8 @@ namespace SplashAddonPlus
                 mode = SplashMode.FixedTime;
             }
 
+            // The splash size option applies to Desktop mode only; Fullscreen mode always fills the screen.
+            bool desktop = PlayniteApi.ApplicationInfo.Mode == ApplicationMode.Desktop;
             var session = new SplashSession(game, new SplashSessionOptions
             {
                 Mode = mode,
@@ -296,9 +351,8 @@ namespace SplashAddonPlus
                 },
                 Images = SplashImageSources.ForGame(game),
                 Style = _settings.Style,
-                WindowFraction = PlayniteApi.ApplicationInfo.Mode == ApplicationMode.Desktop
-                    ? SplashWindowPlacement.Fraction(_settings.DesktopSplashSize)
-                    : 1.0,
+                WindowFraction = desktop ? SplashWindowPlacement.Fraction(_settings.DesktopSplashSize) : 1.0,
+                WindowRect = desktop && _settings.DesktopSplashSize == DesktopSplashSize.PlayniteWindow ? PlayniteWindowRect() : null,
                 GameInfo = SplashGameInfo.FromGame(game, platform),
                 DiagnosticLogging = _settings.EnableDiagnosticLogging
             });
@@ -315,6 +369,31 @@ namespace SplashAddonPlus
             session.Show();
         }
 
+        /// <summary>
+        /// Where the splash goes to cover the Playnite window, read when the game starts (before Playnite may minimize
+        /// itself), exactly its size whatever its proportions (the styles lay themselves out for the window's shape).
+        /// Null when the window is minimized or hidden, which means the whole screen.
+        /// </summary>
+        private int[] PlayniteWindowRect()
+        {
+            try
+            {
+                Window main = Application.Current?.MainWindow;
+                IntPtr handle = main == null ? IntPtr.Zero : new System.Windows.Interop.WindowInteropHelper(main).Handle;
+                int[] bounds = MonitorHelper.VisibleWindowBounds(handle);
+                if (bounds == null)
+                {
+                    LogInfo("The Playnite window is not on screen; the splash fills the screen instead.");
+                }
+
+                return bounds;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not read the Playnite window.");
+                return null;
+            }
+        }
         /// <summary>
         /// Installation folder used to recognise the game's own windows, or null. Emulated games are skipped:
         /// their folder holds the ROM, while the window belongs to the emulator installed elsewhere.

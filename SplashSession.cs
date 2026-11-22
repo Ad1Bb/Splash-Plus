@@ -43,6 +43,15 @@ namespace SplashAddonPlus
         /// <summary>Share of the screen the splash covers: 1 fills it (always in Fullscreen mode), less is a centered window.</summary>
         public double WindowFraction { get; set; } = 1.0;
 
+        /// <summary>
+        /// Screen rectangle for the splash window (x, y, width, height), taken from the Playnite window when the splash
+        /// should cover just that; null otherwise. Wins over <see cref="WindowFraction"/>.
+        /// </summary>
+        public int[] WindowRect { get; set; }
+
+        /// <summary>The splash is a window rather than the whole screen.</summary>
+        public bool Windowed => WindowRect != null || WindowFraction < 1;
+
         /// <summary>Game details shown by the Cinema and Showcase styles.</summary>
         public SplashGameInfo GameInfo { get; set; }
 
@@ -94,7 +103,7 @@ namespace SplashAddonPlus
             GameName = game.Name;
             _options = options;
             _scene = CreateScene(options);
-            _window = CreateCoverWindow(_scene.Root, options.WindowFraction);
+            _window = CreateCoverWindow(_scene.Root, options);
             _window.Title = "SplashAddonPlusSplashScreen";
         }
 
@@ -204,10 +213,10 @@ namespace SplashAddonPlus
             try
             {
                 _window.Show();
-                if (_options.WindowFraction < 1)
+                if (_options.Windowed)
                 {
                     // Again after Show, in case WPF applied its own initial size; the window is still fully transparent.
-                    PlaceWindow(new WindowInteropHelper(_window).Handle, _options.WindowFraction);
+                    PlaceWindow(new WindowInteropHelper(_window).Handle, _options);
                 }
 
                 _window.Activate();
@@ -221,10 +230,12 @@ namespace SplashAddonPlus
             // Only read: the size of the screen the splash opened on, so images are decoded at that resolution (or at
             // the window's size, when the splash is a smaller window).
             _monitor = MonitorHelper.FromWindow(new WindowInteropHelper(_window).Handle) ?? MonitorHelper.Primary();
-            Log(() => $"Splash for \"{GameName}\" on a {_monitor?.ToString() ?? "unknown"} screen" +
-                      $"{(_options.WindowFraction < 1 ? $", as a window of {_options.WindowFraction:P0}" : string.Empty)}; " +
+            string shape = _options.WindowRect != null
+                ? $", over the Playnite window ({_options.WindowRect[2]}x{_options.WindowRect[3]} at {_options.WindowRect[0]},{_options.WindowRect[1]})"
+                : _options.WindowFraction < 1 ? $", as a window of {_options.WindowFraction:P0}" : string.Empty;
+            Log(() => $"Splash for \"{GameName}\" on a {_monitor?.ToString() ?? "unknown"} screen{shape}; " +
                       $"game folder: {_options.GameFolder ?? "not used"}.");
-            _scene.LoadImagesAsync(_options.Images, ScaledForWindow(_monitor, _options.WindowFraction));
+            _scene.LoadImagesAsync(_options.Images, ScaledForWindow(_monitor, _options));
 
             StartGamepad();
 
@@ -458,12 +469,12 @@ namespace SplashAddonPlus
         }
 
         /// <summary>
-        /// Borderless, topmost black window: maximized, or for a <paramref name="fraction"/> below 1 a window of that
+        /// Borderless, topmost black window: maximized, or (Desktop mode) a window over the Playnite window or of a
         /// share of the screen, centered on the screen Windows opens it on, with rounded corners (Windows 11).
         /// </summary>
-        private static Window CreateCoverWindow(UIElement content, double fraction)
+        private static Window CreateCoverWindow(UIElement content, SplashSessionOptions options)
         {
-            bool windowed = fraction < 1;
+            bool windowed = options.Windowed;
             var window = new Window
             {
                 WindowStyle = WindowStyle.None,
@@ -479,24 +490,29 @@ namespace SplashAddonPlus
             if (windowed)
             {
                 // Placed in screen pixels once the window exists but before it is shown, so it never flashes elsewhere.
-                window.SourceInitialized += (s, e) => PlaceWindow(new WindowInteropHelper(window).Handle, fraction);
+                window.SourceInitialized += (s, e) => PlaceWindow(new WindowInteropHelper(window).Handle, options);
             }
 
             return window;
         }
 
-        private static void PlaceWindow(IntPtr hWnd, double fraction)
+        private static void PlaceWindow(IntPtr hWnd, SplashSessionOptions options)
         {
             try
             {
-                MonitorArea monitor = MonitorHelper.FromWindow(hWnd) ?? MonitorHelper.Primary();
-                if (monitor == null || monitor.Width <= 0 || monitor.Height <= 0)
+                int[] r = options.WindowRect;
+                if (r == null)
                 {
-                    return;
+                    MonitorArea monitor = MonitorHelper.FromWindow(hWnd) ?? MonitorHelper.Primary();
+                    if (monitor == null || monitor.Width <= 0 || monitor.Height <= 0)
+                    {
+                        return;
+                    }
+
+                    r = SplashWindowPlacement.Compute(monitor.Width, monitor.Height,
+                        monitor.WorkLeft, monitor.WorkTop, monitor.WorkWidth, monitor.WorkHeight, options.WindowFraction);
                 }
 
-                int[] r = SplashWindowPlacement.Compute(monitor.Width, monitor.Height,
-                    monitor.WorkLeft, monitor.WorkTop, monitor.WorkWidth, monitor.WorkHeight, fraction);
                 NativeMethods.SetWindowPos(hWnd, NativeMethods.HWND_TOPMOST, r[0], r[1], r[2], r[3], NativeMethods.SWP_NOACTIVATE);
                 int round = NativeMethods.DWMWCP_ROUND;
                 NativeMethods.DwmSetWindowAttribute(hWnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
@@ -509,9 +525,9 @@ namespace SplashAddonPlus
         }
 
         /// <summary>The monitor size shrunk to the window's, so a smaller splash decodes smaller images.</summary>
-        private static MonitorArea ScaledForWindow(MonitorArea monitor, double fraction)
+        private static MonitorArea ScaledForWindow(MonitorArea monitor, SplashSessionOptions options)
         {
-            if (monitor == null || fraction >= 1)
+            if (monitor == null || !options.Windowed)
             {
                 return monitor;
             }
@@ -521,8 +537,8 @@ namespace SplashAddonPlus
                 Handle = monitor.Handle,
                 Left = monitor.Left,
                 Top = monitor.Top,
-                Width = (int)Math.Round(monitor.Width * fraction),
-                Height = (int)Math.Round(monitor.Height * fraction),
+                Width = options.WindowRect?[2] ?? (int)Math.Round(monitor.Width * options.WindowFraction),
+                Height = options.WindowRect?[3] ?? (int)Math.Round(monitor.Height * options.WindowFraction),
                 IsPrimary = monitor.IsPrimary
             };
         }

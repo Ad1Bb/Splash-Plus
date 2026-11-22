@@ -254,10 +254,22 @@ namespace SplashAddonPlus
             }
         }
 
+        /// <summary>The frame shrunk about its center to fit a narrow stage (1 on wide screens).</summary>
+        private double _fit = 1;
+
+        /// <summary>Where a point of the (possibly shrunk) frame lands on the stage.</summary>
+        private Point OnStage(double left, double x, double y) => _fit >= 1
+            ? new Point(left + x, y)
+            : new Point(left + FrameWidth / 2 + _fit * (x - FrameWidth / 2), StageHeight / 2 + _fit * (y - StageHeight / 2));
+
         protected override void OnStageWidth(double width)
         {
             double left = width / 2 - FrameWidth / 2;
             Canvas.SetLeft(_frame, left);
+
+            // The rings reach 350 u left of the cover's center (580 u), the panel ends at 1530 u: 730 u either side.
+            _fit = FitWidth(width, 2 * 730, 40);
+            _frame.RenderTransform = _fit < 1 ? new ScaleTransform(_fit, _fit, FrameWidth / 2, StageHeight / 2) : null;
 
             // Grid lines one screen pixel thin, crossing at the screen's center.
             double step = SnapToPixels(GridStep);
@@ -281,8 +293,9 @@ namespace SplashAddonPlus
             for (int i = 0; i < 4; i++)
             {
                 Bracket bracket = _brackets[i];
-                double x = left + (bracket.Right ? target.Right - BracketSize : target.Left);
-                double y = bracket.Bottom ? target.Bottom - BracketSize : target.Top;
+                Point corner = OnStage(left, bracket.Right ? target.Right : target.Left, bracket.Bottom ? target.Bottom : target.Top);
+                double x = bracket.Right ? corner.X - BracketSize : corner.X;
+                double y = bracket.Bottom ? corner.Y - BracketSize : corner.Y;
                 Canvas.SetLeft(bracket.Element, x);
                 Canvas.SetTop(bracket.Element, y);
                 double startX = bracket.Right ? width - BracketInset - BracketSize : BracketInset;

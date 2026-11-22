@@ -62,7 +62,10 @@ namespace SplashAddonPlus
         Large,
 
         /// <summary>A window 50% of the screen's width and height, centered.</summary>
-        Small
+        Small,
+
+        /// <summary>Exactly where the Playnite window is and as large as it, whatever its proportions.</summary>
+        PlayniteWindow
     }
 
     /// <summary>Where a splash window that does not fill the screen goes, in screen pixels.</summary>
