@@ -6,9 +6,7 @@ Animated splash screens for [Playnite](https://playnite.link/). Pick a game and 
   <img src="docs/styles-collage.gif" alt="All Splash Plus styles" width="100%">
 </p>
 
-<p align="center">
-  <a href="https://github.com/Ad1Bb/Splash-Plus/releases/latest"><b>Download the latest release</b></a>
-</p>
+## <a href="https://github.com/Ad1Bb/Splash-Plus/releases/latest"><b>Download the latest release</b></a>
 
 ## Features
 
@@ -148,4 +146,7 @@ GitHub Actions builds the add-on, runs the tests and creates the `.pext` package
 
 ---
 
-Started as a fork of [Splash Addon](https://github.com/artzox/Playnite-Splash-Addon) by Artzox.
+*Started as a fork of [Splash Addon](https://github.com/artzox/Playnite-Splash-Addon) by Artzox.*
+
+## <a href="https://github.com/Ad1Bb/Splash-Plus/releases/latest"><b>Download the latest release</b></a>
+
