@@ -86,12 +86,23 @@ Every style is chosen in the add-on settings, each with a **Preview** button tha
   <img src="docs/options.png" alt="Splash Plus settings" width="760">
 </p>
 
+**All settings**
+
 - **Desktop mode:** open **Add-ons… → Extension settings → Generic → Splash Plus**.
 - **Fullscreen mode:** open **Extensions → Splash Plus**. All the same options are there.
 
+**Settings for one game**
+
+- **Desktop mode:** right-click the game (or several selected games) and open **Splash Plus**.
+- **Fullscreen mode:** open the game's options, then **Extensions → Splash Plus**.
+
+Here you turn the splash screen off for that game, give it a fixed display time or its own style, or preview it.
+
+**All settings, in detail**
+
 - **Appearance:** the style (or Random), with a preview. Custom shows its own options here.
 - **Close the splash screen:** when the game appears (recommended) or after a fixed time.
-- **Games with their own settings:** games you turned off, gave a fixed time or their own style from the library's right-click menu, listed by name.
+- **Games with their own settings:** games you turned off, gave a fixed time or their own style in their own menu, listed by name.
 - **Advanced:**
   - the splash screen size in Desktop mode (full screen, a window at 75% or 50% of the screen, or the same as the Playnite window);
   - the maximum waiting time;
