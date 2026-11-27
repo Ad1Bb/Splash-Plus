@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -47,6 +48,7 @@ namespace SplashAddonPlus
                 case SplashStyle.Slant: return Loc.StyleSlantHint;
                 case SplashStyle.IrisGloss: return Loc.StyleIrisGlossHint;
                 case SplashStyle.SlateGloss: return Loc.StyleSlateGlossHint;
+                case SplashStyle.Random: return Loc.StyleRandomHint;
                 default: return Loc.StyleClassicHint;
             }
         }
@@ -64,7 +66,7 @@ namespace SplashAddonPlus
             // ---------- Look ----------
             root.Children.Add(SectionHeader(Loc.SectionAppearance, first: true));
             var styleRow = new StackPanel { Orientation = Orientation.Horizontal };
-            styleRow.Children.Add(Choice(Loc.StyleLabel, "Style", StyleChoices()));
+            styleRow.Children.Add(Choice(Loc.StyleLabel, "Style", StyleChoices(withDefault: false)));
             var previewButton = new Button
             {
                 Content = Loc.Preview,
@@ -83,7 +85,8 @@ namespace SplashAddonPlus
             styleHint.SetBinding(TextBlock.TextProperty, new Binding("Style") { Converter = StyleDescription });
             root.Children.Add(styleHint);
 
-            // The look options, collapsed (most people never change them); shown only for Custom, the one style that uses them.
+            // The look options, collapsed (most people never change them); shown only when Custom, the one style that
+            // uses them, is the style or some game's own style.
             var options = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
             options.Children.Add(Choice(Loc.LogoPositionLabel, "LogoPosition",
                 Option(LogoPlacement.BottomLeft, Loc.LogoBottomLeft),
@@ -102,7 +105,7 @@ namespace SplashAddonPlus
                 Content = options
             };
             customize.SetBinding(VisibilityProperty,
-                StyleBinding(style => StyleOptions.Customizable(style) ? Visibility.Visible : Visibility.Collapsed));
+                new Binding("ShowCustomOptions") { Converter = new BoolConverter(Visibility.Visible, Visibility.Collapsed) });
             root.Children.Add(customize);
 
             // ---------- When the splash screen closes ----------
@@ -179,12 +182,6 @@ namespace SplashAddonPlus
             };
         }
 
-        /// <summary>A binding to the selected style, converted to a property value.</summary>
-        private static Binding StyleBinding(Func<SplashStyle, object> convert)
-        {
-            return new Binding("Style") { Converter = new StyleConverter(convert) };
-        }
-
         /// <summary>One option of the "when to close" choice.</summary>
         private static RadioButton ModeOption(string text, CloseMode mode, string group)
         {
@@ -201,37 +198,45 @@ namespace SplashAddonPlus
 
         private static KeyValuePair<object, string> Option(object value, string label) => new KeyValuePair<object, string>(value, label);
 
-        /// <summary>The style list: Custom always on top, the rest in alphabetical order of their names.</summary>
-        private static KeyValuePair<object, string>[] StyleChoices()
+        /// <summary>
+        /// The style list: Custom and Random on top, a line, then the ready-made styles A–Z. With
+        /// <paramref name="withDefault"/> a "Default" entry (key null: the style from the settings) comes first.
+        /// </summary>
+        private static List<object> StyleChoices(bool withDefault)
         {
-            var designed = new List<KeyValuePair<object, string>>
+            var items = new List<object>();
+            if (withDefault)
             {
-                Option(SplashStyle.Cinema, Loc.StyleCinema),
-                Option(SplashStyle.Showcase, Loc.StyleShowcase),
-                Option(SplashStyle.Gallery, Loc.StyleGallery),
-                Option(SplashStyle.Plinth, Loc.StylePlinth),
-                Option(SplashStyle.Drawer, Loc.StyleDrawer),
-                Option(SplashStyle.Band, Loc.StyleBand),
-                Option(SplashStyle.TextMode, Loc.StyleTextMode),
-                Option(SplashStyle.TextModeDark, Loc.StyleTextModeDark),
-                Option(SplashStyle.PopFrost, Loc.StylePopFrost),
-                Option(SplashStyle.SwingFrost, Loc.StyleSwingFrost),
-                Option(SplashStyle.MeetFrost, Loc.StyleMeetFrost),
-                Option(SplashStyle.RiseFrost, Loc.StyleRiseFrost),
-                Option(SplashStyle.LootDrop, Loc.StyleLootDrop),
-                Option(SplashStyle.LockOn, Loc.StyleLockOn),
-                Option(SplashStyle.Showdown, Loc.StyleShowdown),
-                Option(SplashStyle.Focus, Loc.StyleFocus),
-                Option(SplashStyle.Slant, Loc.StyleSlant),
-                Option(SplashStyle.IrisGloss, Loc.StyleIrisGloss),
-                Option(SplashStyle.SlateGloss, Loc.StyleSlateGloss)
-            };
-            designed.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Value, b.Value));
-            designed.Insert(0, Option(SplashStyle.Classic, Loc.StyleClassic));
-            return designed.ToArray();
+                items.Add(Option(null, Loc.GameDefault));
+            }
+
+            items.AddRange(StyleList.Special.Select(style => (object)Option(style, StyleList.Name(style))));
+            items.Add(new ComboBoxItem
+            {
+                Content = new Border
+                {
+                    Height = 1,
+                    Background = Brushes.Gray,
+                    Opacity = 0.7,
+                    SnapsToDevicePixels = true,
+                    Margin = new Thickness(0, 3, 0, 3)
+                },
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                IsEnabled = false,
+                Focusable = false,
+                IsHitTestVisible = false,
+                Padding = new Thickness(4, 0, 4, 0)
+            });
+            items.AddRange(StyleList.Designed.Select(style => (object)Option(style, StyleList.Name(style))));
+            return items;
         }
 
         private static UIElement Choice(string label, string path, params KeyValuePair<object, string>[] options)
+        {
+            return Choice(label, path, (System.Collections.IEnumerable)options);
+        }
+
+        private static UIElement Choice(string label, string path, System.Collections.IEnumerable options)
         {
             var panel = new StackPanel();
             panel.Children.Add(new TextBlock
@@ -301,12 +306,14 @@ namespace SplashAddonPlus
         }
 
         /// <summary>
-        /// Games with their own settings in one table: each row shows the game's name, whether its splash screen is
-        /// off or has a fixed time (with the seconds), and a Remove button. Games are added from the game context menu.
+        /// Games with their own settings in one table: each row shows the game's name, its style, whether its splash
+        /// screen is as set for all games, off or has a fixed time (with the seconds), and a Remove button. Games are
+        /// added from the game context menu.
         /// </summary>
         private sealed class GameExceptionsEditor : StackPanel
         {
-            private const double NameWidth = 330;
+            private const double NameWidth = 260;
+            private const double StyleWidth = 150;
             private const double ModeWidth = 130;
 
             private readonly Func<string, string> _resolveName;
@@ -319,12 +326,11 @@ namespace SplashAddonPlus
                 _resolveName = resolveName;
                 Margin = new Thickness(0, 0, 0, 10);
 
-                _header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NameWidth) });
-                _header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ModeWidth + 5) });
-                _header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                AddColumns(_header);
                 AddToGrid(_header, new TextBlock { Text = Loc.GameColumn, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 5) }, 0, 0);
-                AddToGrid(_header, new TextBlock { Text = Loc.SplashColumn, FontWeight = FontWeights.Bold, Margin = new Thickness(5, 0, 0, 5) }, 0, 1);
-                AddToGrid(_header, new TextBlock { Text = Loc.TimeColumn, FontWeight = FontWeights.Bold, Margin = new Thickness(5, 0, 0, 5) }, 0, 2);
+                AddToGrid(_header, new TextBlock { Text = Loc.StyleLabel, FontWeight = FontWeights.Bold, Margin = new Thickness(5, 0, 0, 5) }, 0, 1);
+                AddToGrid(_header, new TextBlock { Text = Loc.SplashColumn, FontWeight = FontWeights.Bold, Margin = new Thickness(5, 0, 0, 5) }, 0, 2);
+                AddToGrid(_header, new TextBlock { Text = Loc.TimeColumn, FontWeight = FontWeights.Bold, Margin = new Thickness(5, 0, 0, 5) }, 0, 3);
                 Children.Add(_header);
                 Children.Add(_rows);
 
@@ -358,7 +364,7 @@ namespace SplashAddonPlus
             // Changing a row, removing a game, or Cancel in the settings dialog replaces a whole list.
             private void OnSettingsChanged(object sender, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName == "GameSpecificDurations" || e.PropertyName == "ExcludedGameIds")
+                if (e.PropertyName == "GameSpecificDurations" || e.PropertyName == "ExcludedGameIds" || e.PropertyName == "GameStyles")
                 {
                     Rebuild();
                 }
@@ -388,14 +394,20 @@ namespace SplashAddonPlus
                 }
             }
 
+            private static void AddColumns(Grid grid)
+            {
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NameWidth) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(StyleWidth + 5) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ModeWidth + 5) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            }
+
             private UIElement CreateRow(GameEntry game)
             {
-                bool off = _settings.IsExcluded(game.Id);
+                GameSplashMode current = _settings.GetGameSplashMode(game.Id);
                 var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(NameWidth) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ModeWidth + 5) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                AddColumns(row);
 
                 AddToGrid(row, new TextBlock
                 {
@@ -406,30 +418,57 @@ namespace SplashAddonPlus
                     Opacity = game.Name == null ? 0.6 : 1.0
                 }, 0, 0);
 
+                // The game's own style, or Default (the style from the settings). A game whose splash screen is off
+                // shows none, so its style is greyed out.
+                List<object> styles = StyleChoices(withDefault: true);
+                SplashStyle? own = _settings.GetGameStyle(game.Id);
+                var style = new ComboBox
+                {
+                    ItemsSource = styles,
+                    DisplayMemberPath = "Value",
+                    SelectedItem = styles.OfType<KeyValuePair<object, string>>().First(item => Equals(item.Key, own)),
+                    Width = StyleWidth,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(5, 0, 0, 0),
+                    IsEnabled = current != GameSplashMode.Off,
+                    Opacity = current != GameSplashMode.Off ? 1.0 : 0.5
+                };
+
+                // Applied after the selection event, as it rebuilds the rows (and this combo box with them).
+                style.SelectionChanged += (s, e) =>
+                {
+                    if (style.SelectedItem is KeyValuePair<object, string> picked)
+                    {
+                        var chosen = (SplashStyle?)picked.Key;
+                        Dispatcher.BeginInvoke((Action)(() => _settings?.SetGameStyle(new[] { game.Id }, chosen)));
+                    }
+                };
+                AddToGrid(row, style, 0, 1);
+
+                var modes = new[] { GameSplashMode.Default, GameSplashMode.FixedTime, GameSplashMode.Off };
                 var mode = new ComboBox
                 {
-                    ItemsSource = new[] { Loc.GameFixedTime, Loc.GameSplashOff },
-                    SelectedIndex = off ? 1 : 0,
+                    ItemsSource = new[] { Loc.GameDefault, Loc.GameFixedTime, Loc.GameSplashOff },
+                    SelectedIndex = Array.IndexOf(modes, current),
                     Width = ModeWidth,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(5, 0, 0, 0)
                 };
 
-                // Applied after the selection event, as it rebuilds the rows (and this combo box with them).
                 mode.SelectionChanged += (s, e) =>
                 {
-                    bool turnOff = mode.SelectedIndex == 1;
-                    Dispatcher.BeginInvoke((Action)(() => _settings?.SetGameSplashOff(game.Id, turnOff)));
+                    GameSplashMode chosen = modes[Math.Max(0, mode.SelectedIndex)];
+                    Dispatcher.BeginInvoke((Action)(() => _settings?.SetGameSplashMode(game.Id, chosen)));
                 };
-                AddToGrid(row, mode, 0, 1);
+                AddToGrid(row, mode, 0, 2);
 
-                if (!off)
+                if (current == GameSplashMode.FixedTime)
                 {
-                    int current;
-                    _settings.GameSpecificDurations.TryGetValue(game.Id, out current);
+                    int seconds0;
+                    _settings.GameSpecificDurations.TryGetValue(game.Id, out seconds0);
                     var seconds = new TextBox
                     {
-                        Text = current.ToString(CultureInfo.InvariantCulture),
+                        Text = seconds0.ToString(CultureInfo.InvariantCulture),
                         Width = 80,
                         HorizontalAlignment = HorizontalAlignment.Left,
                         VerticalAlignment = VerticalAlignment.Center,
@@ -445,12 +484,12 @@ namespace SplashAddonPlus
                             _settings.GameSpecificDurations[game.Id] = value;
                         }
                     };
-                    AddToGrid(row, seconds, 0, 2);
+                    AddToGrid(row, seconds, 0, 3);
                 }
 
                 var remove = new Button { Content = Loc.Remove, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(5, 0, 0, 0) };
                 remove.Click += (s, e) => _settings?.ForgetGame(game.Id);
-                AddToGrid(row, remove, 0, 3);
+                AddToGrid(row, remove, 0, 4);
                 return row;
             }
         }

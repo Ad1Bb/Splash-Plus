@@ -40,7 +40,10 @@ namespace SplashAddonPlus
         Focus,
         Slant,
         IrisGloss,
-        SlateGloss
+        SlateGloss,
+
+        /// <summary>Not a look of its own: one of the ready-made styles, picked anew for every splash screen.</summary>
+        Random
     }
 
     /// <summary>When the splash screen closes (shown as one choice; stored in AutoDetectFullscreen).</summary>
@@ -106,10 +109,89 @@ namespace SplashAddonPlus
                 : default(T);
         }
     }
+
+    /// <summary>One game's splash screen in the per-game table.</summary>
+    internal enum GameSplashMode
+    {
+        /// <summary>As set for all games.</summary>
+        Default,
+
+        /// <summary>Closes after the game's own fixed time.</summary>
+        FixedTime,
+
+        /// <summary>No splash screen for the game.</summary>
+        Off
+    }
+
     /// <summary>The appearance options (logo position and size, dimming, vignette, zoom) are used only by Custom.</summary>
     internal static class StyleOptions
     {
         public static bool Customizable(SplashStyle style) => style == SplashStyle.Classic;
+    }
+
+    /// <summary>Style names and the order they are listed in: Custom and Random first, then the ready-made styles A–Z.</summary>
+    internal static class StyleList
+    {
+        /// <summary>Listed above the line: the style you set up yourself, and the random pick.</summary>
+        public static readonly SplashStyle[] Special = { SplashStyle.Classic, SplashStyle.Random };
+
+        /// <summary>The ready-made styles in alphabetical order of their names.</summary>
+        public static readonly SplashStyle[] Designed = ((SplashStyle[])Enum.GetValues(typeof(SplashStyle)))
+            .Where(style => Array.IndexOf(Special, style) < 0)
+            .OrderBy(Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        /// <summary>
+        /// What Random picks from: the ready-made styles except the two Retro text screens, which look nothing like
+        /// the rest and are shown only when chosen.
+        /// </summary>
+        public static readonly SplashStyle[] RandomPool = Designed
+            .Where(style => style != SplashStyle.TextMode && style != SplashStyle.TextModeDark)
+            .ToArray();
+
+        public static string Name(SplashStyle style)
+        {
+            switch (style)
+            {
+                case SplashStyle.Classic: return Loc.StyleClassic;
+                case SplashStyle.Random: return Loc.StyleRandom;
+                case SplashStyle.Cinema: return Loc.StyleCinema;
+                case SplashStyle.Showcase: return Loc.StyleShowcase;
+                case SplashStyle.Gallery: return Loc.StyleGallery;
+                case SplashStyle.Plinth: return Loc.StylePlinth;
+                case SplashStyle.Drawer: return Loc.StyleDrawer;
+                case SplashStyle.Band: return Loc.StyleBand;
+                case SplashStyle.TextMode: return Loc.StyleTextMode;
+                case SplashStyle.TextModeDark: return Loc.StyleTextModeDark;
+                case SplashStyle.PopFrost: return Loc.StylePopFrost;
+                case SplashStyle.SwingFrost: return Loc.StyleSwingFrost;
+                case SplashStyle.MeetFrost: return Loc.StyleMeetFrost;
+                case SplashStyle.RiseFrost: return Loc.StyleRiseFrost;
+                case SplashStyle.LootDrop: return Loc.StyleLootDrop;
+                case SplashStyle.LockOn: return Loc.StyleLockOn;
+                case SplashStyle.Showdown: return Loc.StyleShowdown;
+                case SplashStyle.Focus: return Loc.StyleFocus;
+                case SplashStyle.Slant: return Loc.StyleSlant;
+                case SplashStyle.IrisGloss: return Loc.StyleIrisGloss;
+                case SplashStyle.SlateGloss: return Loc.StyleSlateGloss;
+                default: return style.ToString();
+            }
+        }
+
+        /// <summary>
+        /// The style to show: <paramref name="style"/> itself, or for Random one from <see cref="RandomPool"/>, never the
+        /// same as <paramref name="last"/> (the previous random pick) so two splash screens in a row always differ.
+        /// </summary>
+        public static SplashStyle Resolve(SplashStyle style, System.Random random, SplashStyle? last)
+        {
+            if (style != SplashStyle.Random)
+            {
+                return style;
+            }
+
+            SplashStyle[] pool = RandomPool.Where(s => s != last).ToArray();
+            return pool[random.Next(pool.Length)];
+        }
     }
 
     /// <summary>Saves the style by name; a name it does not know (a style that was removed) reads as Classic.</summary>

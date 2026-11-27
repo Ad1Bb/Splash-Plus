@@ -289,23 +289,66 @@ var pg = new SplashAddonSettings { SplashScreenDuration = 12 };
 pg.SetExcluded(new[] { "a" }, true);
 pg.SetGameSpecificDuration(new[] { "b" }, 30);
 Check(pg.GamesWithOwnSettings.OrderBy(x => x).SequenceEqual(new[] { "a", "b" }), "one table lists turned-off and fixed-time games");
-pg.SetGameSplashOff("a", false);
+pg.SetGameSplashMode("a", GameSplashMode.FixedTime);
 Check(!pg.IsExcluded("a") && pg.GameSpecificDurations["a"] == 12, "Off → fixed time uses the default time");
-pg.SetGameSplashOff("b", true);
+pg.SetGameSplashMode("b", GameSplashMode.Off);
 Check(pg.IsExcluded("b") && !pg.HasGameSpecificDuration("b"), "fixed time → Off");
-pg.SetGameSplashOff("b", false);
+pg.SetGameSplashMode("b", GameSplashMode.FixedTime);
 Check(pg.GameSpecificDurations["b"] == 12 && !pg.IsExcluded("b"), "back to fixed time");
+pg.SetGameSplashMode("b", GameSplashMode.Default);
+Check(pg.GetGameSplashMode("b") == GameSplashMode.Default && !pg.GamesWithOwnSettings.Contains("b"), "Default drops the game's own closing");
 pg.ForgetGame("a"); pg.ForgetGame("b");
 Check(!pg.GamesWithOwnSettings.Any(), "remove takes the game out of both lists");
-foreach (SplashStyle style in new[] { SplashStyle.Cinema, SplashStyle.Showcase, SplashStyle.Gallery, SplashStyle.Plinth, SplashStyle.Drawer, SplashStyle.Band,
-                                      SplashStyle.TextMode, SplashStyle.TextModeDark,
-                                      SplashStyle.PopFrost, SplashStyle.SwingFrost, SplashStyle.MeetFrost, SplashStyle.RiseFrost,
-                                      SplashStyle.LootDrop, SplashStyle.LockOn, SplashStyle.Showdown, SplashStyle.Focus,
-                                      SplashStyle.Slant, SplashStyle.IrisGloss, SplashStyle.SlateGloss })
+foreach (SplashStyle style in Enum.GetValues(typeof(SplashStyle)))
 {
     var saved = JsonConvert.DeserializeObject<SplashAddonSettings>(JsonConvert.SerializeObject(new SplashAddonSettings { Style = style }));
     Check(saved.Style == style, "style round-trips: " + style);
 }
+
+// Per-game styles and Random
+var gs = new SplashAddonSettings { Style = SplashStyle.Focus };
+gs.SetGameStyle(new[] { "g1", "g2" }, SplashStyle.Slant);
+gs.SetGameStyle(new[] { "g3" }, SplashStyle.Random);
+Check(gs.StyleForGame("g1") == SplashStyle.Slant && gs.StyleForGame("g3") == SplashStyle.Random && gs.StyleForGame("other") == SplashStyle.Focus,
+      "a game's own style wins over the style from the settings");
+Check(gs.GamesWithOwnSettings.OrderBy(x => x).SequenceEqual(new[] { "g1", "g2", "g3" })
+      && gs.GetGameSplashMode("g1") == GameSplashMode.Default, "games with only a style are listed, closing as set for all");
+string gsJson = JsonConvert.SerializeObject(gs);
+var gsSaved = JsonConvert.DeserializeObject<SplashAddonSettings>(gsJson);
+Check(gsJson.Contains("\"g1\":\"Slant\"") && gsSaved.StyleForGame("g2") == SplashStyle.Slant && gsSaved.StyleForGame("g3") == SplashStyle.Random,
+      "per-game styles saved by name");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>("{\"GameStyles\":{\"x\":\"Vhs\"}}").StyleForGame("x") == SplashStyle.Classic,
+      "an unknown per-game style reads as Custom");
+Check(JsonConvert.DeserializeObject<SplashAddonSettings>(oldJson).GameStyles.Count == 0, "old configs have no per-game styles");
+Check(!gs.ShowCustomOptions && gsSaved.GameStyles.Count == 3, "Custom options hidden while no one uses Custom");
+gs.SetGameStyle(new[] { "g2" }, SplashStyle.Classic);
+Check(gs.ShowCustomOptions, "Custom options shown when a game uses Custom");
+gs.BeginEdit(); gs.SetGameStyle(new[] { "g1" }, null); gs.CancelEdit();
+Check(gs.StyleForGame("g1") == SplashStyle.Slant, "cancel restores per-game styles");
+gs.SetGameStyle(new[] { "g1" }, null); gs.ForgetGame("g2"); gs.ForgetGame("g3");
+Check(!gs.GamesWithOwnSettings.Any(), "Default and Remove clear a game's style");
+
+Check(StyleList.Designed.Length == Enum.GetValues(typeof(SplashStyle)).Length - 2
+      && !StyleList.Designed.Contains(SplashStyle.Classic) && !StyleList.Designed.Contains(SplashStyle.Random), "ready-made styles exclude Custom and Random");
+Check(StyleList.RandomPool.Length == StyleList.Designed.Length - 2
+      && !StyleList.RandomPool.Contains(SplashStyle.TextMode) && !StyleList.RandomPool.Contains(SplashStyle.TextModeDark),
+      "Random leaves out both Retro styles");
+Check(StyleList.Designed.Select(StyleList.Name).SequenceEqual(StyleList.Designed.Select(StyleList.Name).OrderBy(n => n, StringComparer.OrdinalIgnoreCase)),
+      "ready-made styles listed A–Z");
+Check(StyleList.Special.SequenceEqual(new[] { SplashStyle.Classic, SplashStyle.Random }), "Custom and Random on top");
+Check(StyleList.Resolve(SplashStyle.Plinth, new Random(1), SplashStyle.Plinth) == SplashStyle.Plinth, "a chosen style stays as it is");
+var rnd = new Random(7);
+SplashStyle? last = null;
+var seen = new HashSet<SplashStyle>();
+bool repeated = false;
+for (int i = 0; i < 2000; i++)
+{
+    SplashStyle picked = StyleList.Resolve(SplashStyle.Random, rnd, last);
+    repeated |= picked == last;
+    seen.Add(picked);
+    last = picked;
+}
+Check(!repeated && seen.SetEquals(StyleList.RandomPool), "Random reaches every style of its pool, never twice in a row");
 
 // Splash size in Desktop mode
 Check(new SplashAddonSettings().DesktopSplashSize == DesktopSplashSize.FullScreen
@@ -477,5 +520,20 @@ Check(skipped.Tag == null && skipped.Logs == 0, "update: no second request on th
 System.IO.File.WriteAllText(stateFile, "damaged");
 var afterDamage = RunCheck(Serve("200 OK", "{\"tag_name\":\"2.1\"}"), stateFile);
 Check(afterDamage.Logs == 0 && UpdateCheck.IsDue(System.IO.File.ReadAllText(stateFile), DateTime.UtcNow) == false, "update: a damaged saved time is replaced");
+// Main menu texts: every language has its own, short enough for Fullscreen mode's fixed-width menu.
+foreach (string code in new[] { "de_DE", "fr_FR", "es_ES", "it_IT", "pt_BR", "pl_PL", "ru_RU", "zh_CN" })
+{
+    Loc.SetLanguage(code);
+    string style = Loc.MenuDefaultStyle, preview = Loc.MenuDefaultStylePreview;
+    Loc.SetLanguage("en_US");
+    Check(!string.IsNullOrEmpty(style) && style != Loc.MenuDefaultStyle && style.Length <= 30
+          && !string.IsNullOrEmpty(preview) && preview != Loc.MenuDefaultStylePreview && preview.Length <= 30, $"main menu texts translated ({code})");
+}
+Check(Loc.MenuDefaultStyle == "Default style" && Loc.MenuDefaultStylePreview == "Default style preview", "main menu texts in English");
+// Warm-up: compiling the add-on's methods ahead never throws, even where some of them cannot be prepared.
+int warmed = -1;
+try { warmed = CodeWarmUp.CompileAll(typeof(UpdateCheck).Assembly); } catch { warmed = -2; }
+Check(warmed > 100, $"warm-up compiles the add-on's methods ({warmed})");
+Check(CodeWarmUp.CompileAll(typeof(UpdateCheck).Assembly) >= 0, "warm-up can run twice");
 Console.WriteLine(failures == 0 ? "ALL PASSED" : $"{failures} FAILED");
 return failures;

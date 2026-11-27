@@ -32,6 +32,7 @@ namespace SplashAddonPlus
         private bool _backgroundVignette;
         private bool _backgroundZoom;
         private SplashStyle _style = SplashStyle.Classic;
+        private Dictionary<string, SplashStyle> _gameStyles = new Dictionary<string, SplashStyle>();
         private DesktopSplashSize _desktopSplashSize = DesktopSplashSize.FullScreen;
         private ObservableCollection<PlatformDuration> _platformDurations = new ObservableCollection<PlatformDuration>();
 
@@ -165,7 +166,27 @@ namespace SplashAddonPlus
         public bool BackgroundZoom { get => _backgroundZoom; set => SetValue(ref _backgroundZoom, value, "BackgroundZoom"); }
 
         [JsonProperty("Style"), JsonConverter(typeof(SplashStyleConverter))]
-        public SplashStyle Style { get => _style; set => SetValue(ref _style, value, "Style"); }
+        public SplashStyle Style
+        {
+            get => _style;
+            set
+            {
+                SetValue(ref _style, value, "Style");
+                OnPropertyChanged("ShowCustomOptions");
+            }
+        }
+
+        /// <summary>Games with a style of their own (game ID → style), set from the game context menu.</summary>
+        [JsonProperty("GameStyles", ObjectCreationHandling = ObjectCreationHandling.Replace, ItemConverterType = typeof(SplashStyleConverter))]
+        public Dictionary<string, SplashStyle> GameStyles
+        {
+            get => _gameStyles;
+            set
+            {
+                SetValue(ref _gameStyles, value ?? new Dictionary<string, SplashStyle>(), "GameStyles");
+                OnPropertyChanged("ShowCustomOptions");
+            }
+        }
 
         /// <summary>Splash screen size in Playnite's Desktop mode; Fullscreen mode always fills the screen.</summary>
         [JsonProperty("DesktopSplashSize"), JsonConverter(typeof(SafeEnumConverter<DesktopSplashSize>))]
@@ -174,6 +195,11 @@ namespace SplashAddonPlus
             get => _desktopSplashSize;
             set => SetValue(ref _desktopSplashSize, value, "DesktopSplashSize");
         }
+
+        /// <summary>Custom's options are shown when Custom is the style, or the style of any game.</summary>
+        [JsonIgnore]
+        public bool ShowCustomOptions =>
+            StyleOptions.Customizable(Style) || (GameStyles?.Values.Any(StyleOptions.Customizable) ?? false);
 
         [JsonProperty("PlatformDurations", ObjectCreationHandling = ObjectCreationHandling.Replace)]
         public ObservableCollection<PlatformDuration> PlatformDurations
@@ -469,36 +495,83 @@ namespace SplashAddonPlus
             GameSpecificDurations = durations;
         }
 
-        /// <summary>Games listed in either per-game setting (the settings page shows them in one table).</summary>
-        [JsonIgnore]
-        internal IEnumerable<string> GamesWithOwnSettings =>
-            (ExcludedGameIds ?? new List<string>()).Concat(GameSpecificDurations?.Keys ?? Enumerable.Empty<string>());
-
-        /// <summary>
-        /// One game's row in the per-game table: "Off" turns its splash screen off, otherwise it gets a fixed time
-        /// (keeping one it already had, else the default time).
-        /// </summary>
-        internal void SetGameSplashOff(string gameId, bool off)
+        /// <summary>The game's own style, or null when it uses the style chosen in the settings.</summary>
+        public SplashStyle? GetGameStyle(string gameId)
         {
-            if (off)
+            return !string.IsNullOrEmpty(gameId) && GameStyles != null && GameStyles.TryGetValue(gameId, out SplashStyle style)
+                ? style
+                : (SplashStyle?)null;
+        }
+
+        /// <summary>Gives the games a style of their own, or (null) lets them use the style from the settings again.</summary>
+        public void SetGameStyle(IEnumerable<string> gameIds, SplashStyle? style)
+        {
+            var styles = new Dictionary<string, SplashStyle>(GameStyles ?? new Dictionary<string, SplashStyle>());
+            foreach (string gameId in gameIds)
             {
-                SetGameSpecificDuration(new[] { gameId }, null);
-                SetExcluded(new[] { gameId }, true);
-                return;
+                if (style.HasValue)
+                {
+                    styles[gameId] = style.Value;
+                }
+                else
+                {
+                    styles.Remove(gameId);
+                }
             }
 
-            SetExcluded(new[] { gameId }, false);
-            if (!HasGameSpecificDuration(gameId))
+            GameStyles = styles;
+        }
+
+        /// <summary>The style a game starts with: its own, else the one from the settings (either may be Random).</summary>
+        public SplashStyle StyleForGame(string gameId) => GetGameStyle(gameId) ?? Style;
+
+        /// <summary>Games listed in any per-game setting (the settings page shows them in one table).</summary>
+        [JsonIgnore]
+        internal IEnumerable<string> GamesWithOwnSettings =>
+            (ExcludedGameIds ?? new List<string>())
+                .Concat(GameSpecificDurations?.Keys ?? Enumerable.Empty<string>())
+                .Concat(GameStyles?.Keys ?? Enumerable.Empty<string>());
+
+        /// <summary>
+        /// One game's splash screen in the per-game table: as set in the settings, off, or a fixed time (keeping one
+        /// it already had, else the default time).
+        /// </summary>
+        internal void SetGameSplashMode(string gameId, GameSplashMode mode)
+        {
+            switch (mode)
             {
-                SetGameSpecificDuration(new[] { gameId }, SplashScreenDuration > 0 ? SplashScreenDuration : 10);
+                case GameSplashMode.Off:
+                    SetGameSpecificDuration(new[] { gameId }, null);
+                    SetExcluded(new[] { gameId }, true);
+                    break;
+                case GameSplashMode.FixedTime:
+                    SetExcluded(new[] { gameId }, false);
+                    if (!HasGameSpecificDuration(gameId))
+                    {
+                        SetGameSpecificDuration(new[] { gameId }, SplashScreenDuration > 0 ? SplashScreenDuration : 10);
+                    }
+
+                    break;
+                default:
+                    SetExcluded(new[] { gameId }, false);
+                    SetGameSpecificDuration(new[] { gameId }, null);
+                    break;
             }
         }
 
-        /// <summary>Removes a game from both per-game settings.</summary>
+        internal GameSplashMode GetGameSplashMode(string gameId)
+        {
+            return IsExcluded(gameId) ? GameSplashMode.Off
+                : HasGameSpecificDuration(gameId) ? GameSplashMode.FixedTime
+                : GameSplashMode.Default;
+        }
+
+        /// <summary>Removes a game from every per-game setting.</summary>
         internal void ForgetGame(string gameId)
         {
             SetGameSpecificDuration(new[] { gameId }, null);
             SetExcluded(new[] { gameId }, false);
+            SetGameStyle(new[] { gameId }, null);
         }
 
         // ----- ISettings / IEditableObject -----

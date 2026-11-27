@@ -126,6 +126,8 @@ namespace SplashAddonPlus
         public static string StyleLabel => T();
         public static string StyleClassic => T();
         public static string StyleClassicHint => T();
+        public static string StyleRandom => T();
+        public static string StyleRandomHint => T();
         public static string StyleCinemaHint => T();
         public static string StyleShowcaseHint => T();
         public static string StyleGalleryHint => T();
@@ -171,6 +173,7 @@ namespace SplashAddonPlus
         public static string SplashColumn => T();
         public static string GameFixedTime => T();
         public static string GameSplashOff => T();
+        public static string GameDefault => T();
         public static string NoGames => T();
         public static string UnknownGame(string id) => string.Format(T(), id);
         public static string UpdateAvailable(string version) => string.Format(T(), version);
@@ -210,6 +213,8 @@ namespace SplashAddonPlus
         public static string MenuSetTime => T();
         public static string MenuRemoveTime => T();
         public static string MenuPreview => T();
+        public static string MenuDefaultStyle => T();
+        public static string MenuDefaultStylePreview => T();
         public static string AskDuration(string gameName, int gameCount) => gameCount == 1
             ? string.Format(T("AskDurationOne"), gameName)
             : T("AskDurationMany");
@@ -245,6 +250,8 @@ namespace SplashAddonPlus
             ["StyleLabel"] = "Style",
             ["StyleClassic"] = "Custom",
             ["StyleClassicHint"] = "The game's background and logo, set up with the options below.",
+            ["StyleRandom"] = "Random",
+            ["StyleRandomHint"] = "A different ready-made style each time a game starts (Retro styles only when chosen).",
             ["StyleCinemaHint"] = "Letterbox bars, drifting backdrop and a title revealed like a film opening.",
             ["StyleShowcaseHint"] = "The cover stands in the middle of the artwork with a reflection and a sheen.",
             ["StyleGalleryHint"] = "The artwork and the cover hang side by side on a dark wall under a spotlight.",
@@ -292,6 +299,7 @@ namespace SplashAddonPlus
             ["SplashColumn"] = "Splash screen",
             ["GameFixedTime"] = "Fixed time",
             ["GameSplashOff"] = "Off",
+            ["GameDefault"] = "Default",
             ["NoGames"] = "None yet.",
             ["UnknownGame"] = "Unknown game ({0})",
             ["UpdateAvailable"] = "Splash Plus {0} is available. Click to open the download page.",
@@ -335,6 +343,8 @@ namespace SplashAddonPlus
             ["MenuSetTime"] = "Set a fixed display time…",
             ["MenuRemoveTime"] = "Remove the fixed time",
             ["MenuPreview"] = "Show splash screen preview",
+            ["MenuDefaultStyle"] = "Default style",
+            ["MenuDefaultStylePreview"] = "Default style preview",
             ["AskDurationOne"] = "How many seconds should the splash screen last for \"{0}\"?",
             ["AskDurationMany"] = "How many seconds should the splash screen last for the selected games?",
             ["AskDurationNote"] = "Automatic detection is not used for games with a fixed time.",

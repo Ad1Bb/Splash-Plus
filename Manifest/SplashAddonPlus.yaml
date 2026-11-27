@@ -1,5 +1,9 @@
 AddonId: SplashAddonPlus_Ad1Bb
 Packages:
+  - Version: 2.3
+    RequiredApiVersion: 6.12.0
+    ReleaseDate: 2026-11-27
+    PackageUrl: https://github.com/Ad1Bb/Splash-Plus/releases/download/2.3/SplashPlus_2_3.pext
   - Version: 2.2
     RequiredApiVersion: 6.12.0
     ReleaseDate: 2026-11-22

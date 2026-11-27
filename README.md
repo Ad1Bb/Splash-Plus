@@ -16,7 +16,9 @@ Animated splash screens for [Playnite](https://playnite.link/). Pick a game and 
 - **Best with logos.** The styles look their best with each game's logo downloaded. Logos come from the **Extra Metadata Loader** add-on, so install it too and download logos for your library.
 - **Best with standard-size artwork.** Backgrounds and covers close to their original size, such as the ones downloaded from Steam, load almost instantly. Very large files (for example 8K wallpapers or huge PNGs) take longer to read and can delay the artwork on screen.
 - **Close it any time.** Press **Esc**, click the mouse or press **B** on a gamepad. The click or button press that launched the game cannot close it by accident. The splash screen also closes by itself when the game exits or its startup is cancelled.
-- **Per-game settings.** Right-click games in your library and open **Splash Plus** to turn the splash screen off for them, give them a fixed display time, or preview it.
+- **Random or a style for each game.** Choose **Random** and every launch gets a different ready-made style, never the same twice in a row. Or give single games their own style from the right-click menu; the rest keep the default.
+- **Per-game settings.** Right-click games in your library and open **Splash Plus** to turn the splash screen off for them, give them a fixed display time or their own style, or preview it.
+- **Quick style change.** **Extensions → Splash Plus** in Playnite's main menu sets the default style and shows a preview of it with a random game.
 - **Fixed time when you need it.** A fixed display time for all games, or a separate one for each platform.
 - **Desktop and Fullscreen mode.** The splash screen works in both modes, and so do the settings: every option can be changed right in Fullscreen mode, without going back to Desktop mode.
 - **Full screen or a window in Desktop mode.** In Desktop mode the splash screen can also be a centered window with rounded corners, at 75% or 50% of the screen, so the desktop stays in view, or cover exactly the Playnite window, whatever its size and shape. The styles fit narrow windows too. Fullscreen mode always uses the whole screen.
@@ -25,7 +27,7 @@ Animated splash screens for [Playnite](https://playnite.link/). Pick a game and 
 
 ## Lightweight
 
-- **Nothing runs in the background.** Between games there are no timers, threads or polling. The only other work is one quick look for a new version when Playnite starts, at most once a day. Splash Plus only waits for Playnite to report that a game is starting. The whole add-on is a single ~350 KB DLL.
+- **Nothing runs in the background.** Between games there are no timers, threads or polling. The only other work is one quick look for a new version when Playnite starts, at most once a day. Splash Plus only waits for Playnite to report that a game is starting. The whole add-on is a single ~360 KB DLL.
 - **Smooth animations.** Images are decoded off the UI thread, at screen resolution only. Every blur, shadow and glow is rendered once, so the animations only move, scale and fade finished images, composited on the GPU.
 - **Tiny checks while it waits.** Looking for the game's window takes a fraction of a millisecond, four times a second. The gamepad is checked through XInput.
 - **Gone without a trace.** When the splash screen closes, every timer and animation stops and the images are released. If the game is never detected, a safety limit (60 seconds by default) closes it anyway.
@@ -87,9 +89,9 @@ Every style is chosen in the add-on settings, each with a **Preview** button tha
 - **Desktop mode:** open **Add-ons… → Extension settings → Generic → Splash Plus**.
 - **Fullscreen mode:** open **Extensions → Splash Plus**. All the same options are there.
 
-- **Appearance:** the style, with a preview. Custom shows its own options here.
+- **Appearance:** the style (or Random), with a preview. Custom shows its own options here.
 - **Close the splash screen:** when the game appears (recommended) or after a fixed time.
-- **Games with their own settings:** games you turned off or gave a fixed time from the library's right-click menu, listed by name.
+- **Games with their own settings:** games you turned off, gave a fixed time or their own style from the library's right-click menu, listed by name.
 - **Advanced:**
   - the splash screen size in Desktop mode (full screen, a window at 75% or 50% of the screen, or the same as the Playnite window);
   - the maximum waiting time;
@@ -142,7 +144,7 @@ The tests cover everything that does not need Windows: settings and their migrat
 dotnet run --project Tests -c Release
 ```
 
-GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `2.2`) publishes a release with the package attached.
+GitHub Actions builds the add-on, runs the tests and creates the `.pext` package on every push. Pushing a version tag (for example `2.3`) publishes a release with the package attached.
 
 ---
 

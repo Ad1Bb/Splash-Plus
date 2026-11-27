@@ -90,8 +90,9 @@ namespace SplashAddonPlus
         private static readonly Random PreviewPick = new Random();
 
         /// <summary>
-        /// The settings page's Preview button: the splash screen with a random game (one with artwork when there is
-        /// any), using the settings as they are being edited.
+        /// The settings page's Preview button and Extensions → Splash Plus → Default style preview: the splash screen
+        /// with a random game (one with artwork when there is any), using the settings as they are being edited, in the
+        /// default style even when that game has its own.
         /// </summary>
         private void PreviewRandomGame()
         {
@@ -106,7 +107,7 @@ namespace SplashAddonPlus
                     return;
                 }
 
-                StartSplash(pool[PreviewPick.Next(pool.Count)], null, preview: true);
+                StartSplash(pool[PreviewPick.Next(pool.Count)], null, preview: true, defaultStyle: true);
             });
         }
 
@@ -124,6 +125,50 @@ namespace SplashAddonPlus
             catch (Exception ex)
             {
                 Logger.Warn(ex, "Could not start the update check.");
+            }
+
+            ScheduleWarmUp();
+        }
+
+        /// <summary>
+        /// A few seconds after Playnite starts, when it is idle: compiles the add-on's code in the background, then
+        /// prepares the chosen style once off screen (fonts, effects), so the first splash appears as fast as the
+        /// later ones. Nothing is shown; any failure only skips it.
+        /// </summary>
+        private void ScheduleWarmUp()
+        {
+            try
+            {
+                System.Windows.Threading.Dispatcher dispatcher = Application.Current?.Dispatcher;
+                if (dispatcher == null)
+                {
+                    return;
+                }
+
+                var timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.ApplicationIdle, dispatcher)
+                {
+                    Interval = TimeSpan.FromSeconds(8)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+                    var started = System.Diagnostics.Stopwatch.StartNew();
+                    System.Threading.Tasks.Task.Run(() => CodeWarmUp.CompileAll(typeof(SplashAddonPlugin).Assembly)).ContinueWith(t =>
+                        dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, (Action)(() =>
+                        {
+                            if (_session == null)
+                            {
+                                SplashSession.WarmUp(StyleList.Resolve(_settings.Style, new Random(), null));
+                            }
+
+                            LogInfo($"Warm-up done in {started.ElapsedMilliseconds} ms.");
+                        })));
+                };
+                timer.Start();
+            }
+            catch (Exception ex)
+            {
+                Logger.Info("Warm-up skipped: " + ex.Message);
             }
         }
 
@@ -173,7 +218,8 @@ namespace SplashAddonPlus
 
         public override void OnGameStarting(OnGameStartingEventArgs args)
         {
-            RunOnUi(() => StartSplash(args.Game, args.SourceAction, preview: false));
+            var sinceRequest = System.Diagnostics.Stopwatch.StartNew();
+            RunOnUi(() => StartSplash(args.Game, args.SourceAction, preview: false, sinceRequest));
         }
 
         public override void OnGameStopped(OnGameStoppedEventArgs args)
@@ -236,6 +282,8 @@ namespace SplashAddonPlus
                 });
             }
 
+            items.AddRange(StyleMenu(ids));
+
             if (single)
             {
                 items.Add(new GameMenuItem
@@ -247,6 +295,80 @@ namespace SplashAddonPlus
             }
 
             return items;
+        }
+
+        // ---------------------------------------------------------------- main menu
+
+        /// <summary>
+        /// Extensions → Splash Plus (Desktop mode's main menu and Fullscreen mode's extensions menu), on purpose just
+        /// two items whose names say they are about the default: the default style (games with their own keep it) and
+        /// a preview of it with a random game. The current style is ticked; Playnite asks for the items each time the
+        /// menu opens.
+        /// </summary>
+        public override IEnumerable<MainMenuItem> GetMainMenuItems(GetMainMenuItemsArgs args)
+        {
+            var items = new List<MainMenuItem>();
+            try
+            {
+                bool desktop = PlayniteApi.ApplicationInfo.Mode == ApplicationMode.Desktop;
+                string section = "@" + MenuSection;
+                string styles = section + "|" + Loc.MenuDefaultStyle;
+
+                MainMenuItem Style(SplashStyle style) => new MainMenuItem
+                {
+                    MenuSection = styles,
+                    Description = (_settings.Style == style ? "✓ " : string.Empty) + StyleList.Name(style),
+                    Action = a => UpdateSettings(() => _settings.Style = style)
+                };
+
+                items.AddRange(StyleList.Special.Select(Style));
+
+                // Fullscreen mode's menu may not draw separator lines, so it gets none.
+                if (desktop)
+                {
+                    items.Add(new MainMenuItem { MenuSection = styles, Description = "-" });
+                }
+
+                items.AddRange(StyleList.Designed.Select(Style));
+                items.Add(new MainMenuItem { MenuSection = section, Description = Loc.MenuDefaultStylePreview, Action = a => PreviewRandomGame() });
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Could not build the Splash Plus menu.");
+            }
+
+            return items;
+        }
+
+        /// <summary>
+        /// The "Style" submenu: Default (the style from the settings), Custom and Random, a line, then the ready-made
+        /// styles A–Z. The style the selected games share is ticked.
+        /// </summary>
+        private IEnumerable<GameMenuItem> StyleMenu(List<string> ids)
+        {
+            string section = MenuSection + "|" + Loc.StyleLabel;
+            List<SplashStyle?> own = ids.Select(_settings.GetGameStyle).Distinct().ToList();
+            SplashStyle? shared = own.Count == 1 ? own[0] : null;
+            bool allDefault = own.Count == 1 && own[0] == null;
+
+            GameMenuItem Entry(SplashStyle? style, string name, bool ticked) => new GameMenuItem
+            {
+                MenuSection = section,
+                Description = (ticked ? "✓ " : string.Empty) + name,
+                Action = a => UpdateSettings(() => _settings.SetGameStyle(IdsOf(a), style))
+            };
+
+            yield return Entry(null, Loc.GameDefault, allDefault);
+            foreach (SplashStyle style in StyleList.Special)
+            {
+                yield return Entry(style, StyleList.Name(style), shared == style);
+            }
+
+            yield return new GameMenuItem { MenuSection = section, Description = "-" };
+            foreach (SplashStyle style in StyleList.Designed)
+            {
+                yield return Entry(style, StyleList.Name(style), shared == style);
+            }
         }
 
         private void AskForGameDuration(List<Game> games)
@@ -293,8 +415,26 @@ namespace SplashAddonPlus
 
         // ---------------------------------------------------------------- splash handling
 
-        private void StartSplash(Game game, GameAction sourceAction, bool preview)
+        private static readonly Random StylePick = new Random();
+        private SplashStyle? _lastRandomStyle;
+
+        /// <summary>The game's style (its own, else the default from the settings; only the default with <paramref name="defaultStyle"/>); Random picks a different one each time.</summary>
+        private SplashStyle PickStyle(string gameId, bool defaultStyle = false)
         {
+            SplashStyle wanted = defaultStyle ? _settings.Style : _settings.StyleForGame(gameId);
+            SplashStyle style = StyleList.Resolve(wanted, StylePick, _lastRandomStyle);
+            if (wanted == SplashStyle.Random)
+            {
+                _lastRandomStyle = style;
+            }
+
+            return style;
+        }
+
+        private void StartSplash(Game game, GameAction sourceAction, bool preview, System.Diagnostics.Stopwatch sinceRequest = null, bool defaultStyle = false)
+        {
+            sinceRequest = sinceRequest ?? System.Diagnostics.Stopwatch.StartNew();
+            long waitedForUi = sinceRequest.ElapsedMilliseconds;
             if (_session != null)
             {
                 _session.CloseImmediately();
@@ -350,11 +490,13 @@ namespace SplashAddonPlus
                     Zoom = _settings.BackgroundZoom
                 },
                 Images = SplashImageSources.ForGame(game),
-                Style = _settings.Style,
+                Style = PickStyle(gameId, defaultStyle),
                 WindowFraction = desktop ? SplashWindowPlacement.Fraction(_settings.DesktopSplashSize) : 1.0,
                 WindowRect = desktop && _settings.DesktopSplashSize == DesktopSplashSize.PlayniteWindow ? PlayniteWindowRect() : null,
                 GameInfo = SplashGameInfo.FromGame(game, platform),
-                DiagnosticLogging = _settings.EnableDiagnosticLogging
+                DiagnosticLogging = _settings.EnableDiagnosticLogging,
+                SinceRequest = sinceRequest,
+                WaitedForUiMilliseconds = waitedForUi
             });
             session.Closed += (s, e) =>
             {

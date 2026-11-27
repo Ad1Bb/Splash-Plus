@@ -58,6 +58,11 @@ namespace SplashAddonPlus
         /// <summary>Write details about detection to extensions.log (off by default).</summary>
         public bool DiagnosticLogging { get; set; }
 
+        /// <summary>Started when Playnite reported the game start (or the preview was asked for), for the timing log.</summary>
+        public System.Diagnostics.Stopwatch SinceRequest { get; set; } = System.Diagnostics.Stopwatch.StartNew();
+
+        /// <summary>Milliseconds from Playnite's game-start event until the add-on's code ran on the UI thread.</summary>
+        public long WaitedForUiMilliseconds { get; set; }
     }
 
     /// <summary>
@@ -69,6 +74,12 @@ namespace SplashAddonPlus
         private static readonly ILogger Logger = LogManager.GetLogger();
 
         private static readonly TimeSpan FadeDuration = TimeSpan.FromSeconds(1.0);
+
+        /// <summary>The window is shown at once and brightens evenly over a second (the user's choice, as in 2.2).</summary>
+        private static readonly TimeSpan FadeInDuration = TimeSpan.FromSeconds(1.0);
+
+        /// <summary>A splash slower than this to reach the screen is noted in the log even without diagnostic logging.</summary>
+        private const long SlowAppearanceMilliseconds = 1500;
         private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan GamepadPollInterval = TimeSpan.FromMilliseconds(100);
         private const double InputGraceSeconds = 0.75;
@@ -77,8 +88,10 @@ namespace SplashAddonPlus
         private const int OutsideFolderExtraSeconds = 3;
 
         private readonly SplashSessionOptions _options;
-        private readonly ISplashScene _scene;
+        /// <summary>Built right after the window is on screen (null until then), so a black window shows at once.</summary>
+        private ISplashScene _scene;
         private readonly Window _window;
+        private long _shownAfterMilliseconds;
         private MonitorArea _monitor;
         private readonly List<DispatcherTimer> _timers = new List<DispatcherTimer>();
 
@@ -102,9 +115,40 @@ namespace SplashAddonPlus
             GameId = game.Id;
             GameName = game.Name;
             _options = options;
-            _scene = CreateScene(options);
-            _window = CreateCoverWindow(_scene.Root, options);
+            _window = CreateCoverWindow(null, options);
             _window.Title = "SplashAddonPlusSplashScreen";
+        }
+
+        /// <summary>
+        /// Prepares a style once, off screen and without images, so the first splash after Playnite starts does not
+        /// pay for loading its code, fonts and effects. Best effort: any failure is ignored.
+        /// </summary>
+        internal static void WarmUp(SplashStyle style)
+        {
+            try
+            {
+                ISplashScene scene = CreateScene(new SplashSessionOptions
+                {
+                    Style = style,
+                    Appearance = new SplashAppearance(),
+                    Images = new SplashImageSources(),
+                    GameInfo = new SplashGameInfo { Name = "Splash Plus" }
+                });
+                if (scene.Root is FrameworkElement root)
+                {
+                    root.Width = 384;
+                    root.Height = 216;
+                    root.Measure(new Size(384, 216));
+                    root.Arrange(new Rect(0, 0, 384, 216));
+                    root.UpdateLayout();
+                    var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(384, 216, 96, 96, PixelFormats.Pbgra32);
+                    bitmap.Render(root);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Info("Warm-up skipped: " + ex.Message);
+            }
         }
 
         private static ISplashScene CreateScene(SplashSessionOptions options)
@@ -174,7 +218,7 @@ namespace SplashAddonPlus
             {
                 if (!_closing)
                 {
-                    _window.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.0, 1.0, FadeDuration));
+                    _window.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.0, 1.0, FadeInDuration));
                 }
             };
 
@@ -220,6 +264,7 @@ namespace SplashAddonPlus
                 }
 
                 _window.Activate();
+                _shownAfterMilliseconds = _options.SinceRequest.ElapsedMilliseconds;
             }
             catch (Exception ex)
             {
@@ -235,7 +280,10 @@ namespace SplashAddonPlus
                 : _options.WindowFraction < 1 ? $", as a window of {_options.WindowFraction:P0}" : string.Empty;
             Log(() => $"Splash for \"{GameName}\" on a {_monitor?.ToString() ?? "unknown"} screen{shape}; " +
                       $"game folder: {_options.GameFolder ?? "not used"}.");
-            _scene.LoadImagesAsync(_options.Images, ScaledForWindow(_monitor, _options));
+
+            // The window is drawn black first; the style is built right after that frame, so nothing it reads (the
+            // cover's proportions from disk, its layout) holds the window back.
+            _window.Dispatcher.BeginInvoke(DispatcherPriority.Background, (Action)BuildScene);
 
             StartGamepad();
 
@@ -249,6 +297,51 @@ namespace SplashAddonPlus
                     StartSafetyTimer();
                     StartTimer(PollInterval, PollForGameWindow, repeat: true);
                     break;
+            }
+        }
+
+        /// <summary>Builds the style into the window that is already on screen and starts loading its images.</summary>
+        private void BuildScene()
+        {
+            if (_closing || _scene != null)
+            {
+                return;
+            }
+
+            try
+            {
+                _scene = CreateScene(_options);
+                _window.Content = _scene.Root;
+                _scene.LoadImagesAsync(_options.Images, ScaledForWindow(_monitor, _options));
+
+                // Runs once layout and rendering of the style have had their turn.
+                _window.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, (Action)LogTiming);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to build the splash style.");
+                CloseImmediately();
+            }
+        }
+
+        /// <summary>
+        /// When the style is first on screen: how long each step took since Playnite reported the game start. Written
+        /// with diagnostic logging, and always when the splash took long, so a report shows where the time went.
+        /// </summary>
+        private void LogTiming()
+        {
+            long drawn = _options.SinceRequest.ElapsedMilliseconds;
+            string timing = $"Splash for \"{GameName}\" timing since Playnite reported the game start: add-on code ran after " +
+                            $"{_options.WaitedForUiMilliseconds} ms, window shown after {_shownAfterMilliseconds} ms, style on screen after {drawn} ms.";
+            if (drawn >= SlowAppearanceMilliseconds)
+            {
+                Logger.Warn(timing + (_options.WaitedForUiMilliseconds >= SlowAppearanceMilliseconds / 2
+                    ? " Most of the wait was before the add-on's turn (Playnite, a script or another add-on)."
+                    : string.Empty));
+            }
+            else
+            {
+                Log(() => timing);
             }
         }
 
@@ -284,7 +377,7 @@ namespace SplashAddonPlus
             _closing = true;
             StopTimers();
             StopGamepad();
-            _scene.OnClosing();
+            _scene?.OnClosing();
 
             var fadeOut = new DoubleAnimation { To = 0.0, Duration = FadeDuration };
             fadeOut.Completed += (s, e) => CloseWindow();
